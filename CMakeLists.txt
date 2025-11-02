@@ -8,5 +8,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+add_library(exsqs_core
+  src/lattice.cpp
+)
+target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 add_executable(exsqs src/main.cpp)
-target_include_directories(exsqs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(exsqs PRIVATE exsqs_core)
