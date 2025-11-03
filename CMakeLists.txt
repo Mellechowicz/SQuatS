@@ -9,6 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_library(exsqs_core
+  src/structure.cpp
   src/lattice.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
