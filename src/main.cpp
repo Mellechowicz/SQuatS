@@ -21,6 +21,6 @@ int main(int argc, char** argv) {
     std::printf("demo-geom: sc 3x3x3 supercell -> %d sites\n", s.natoms());
     return 0;
   }
-  std::printf("exsqs 0.0.1 (development)\n");
+  std::printf("exsqs 0.1.0 (development)\n");
   return 0;
 }
