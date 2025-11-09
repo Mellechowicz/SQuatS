@@ -4,6 +4,7 @@
 
 #include "exsqs/lattice.hpp"
 #include "exsqs/structure.hpp"
+#include "exsqs/zones.hpp"
 
 using namespace exsqs;
 
@@ -19,6 +20,14 @@ int main(int argc, char** argv) {
   if (a == "--demo-geom") {
     const Structure s = demo_cell();
     std::printf("demo-geom: sc 3x3x3 supercell -> %d sites\n", s.natoms());
+    return 0;
+  }
+  if (a == "--demo-zones") {
+    const Structure s = demo_cell();
+    const ZoneTable zt = build_zones(s, 5, 1e-3);
+    std::printf("demo-zones: %d shells:", zt.n_shells);
+    for (double r : zt.radii) std::printf(" %.4f", r);
+    std::printf("  (z1=%d)\n", zt.coord_num.empty() ? 0 : zt.coord_num[0]);
     return 0;
   }
   std::printf("exsqs 0.1.0 (development)\n");
