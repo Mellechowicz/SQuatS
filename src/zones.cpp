@@ -37,10 +37,13 @@ ZoneTable build_zones(const Structure& geom, int n_shells, double shell_rel_tol)
   std::sort(ds.begin(), ds.end());
 
   ZoneTable zt;
-  (void)n_shells;
-  zt.radii.push_back(ds.front());  // first coordination shell only
-  zt.n_shells = 1;
-
+  for (double d : ds) {
+    if (zt.radii.empty() || d > zt.radii.back() * (1.0 + shell_rel_tol)) {
+      if (static_cast<int>(zt.radii.size()) == n_shells) break;
+      zt.radii.push_back(d);
+    }
+  }
+  zt.n_shells = static_cast<int>(zt.radii.size());
   const double rmax = zt.radii.back() * (1.0 + shell_rel_tol);
 
   zt.nbrs.assign(N, {});
