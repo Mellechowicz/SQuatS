@@ -8,11 +8,30 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+include(FetchContent)
+
+set(SPGLIB_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(SPGLIB_WITH_Fortran OFF CACHE BOOL "" FORCE)
+set(SPGLIB_WITH_Python OFF CACHE BOOL "" FORCE)
+set(SPGLIB_WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(SPGLIB_USE_OMP OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(spglib
+  GIT_REPOSITORY https://github.com/spglib/spglib.git
+  GIT_TAG v2.7.0
+  GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(spglib)
+
 add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
+  src/symmetry.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+if(TARGET Spglib::symspg)
+  target_link_libraries(exsqs_core PUBLIC Spglib::symspg)
+else()
+  target_link_libraries(exsqs_core PUBLIC symspg)
+endif()
 
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
