@@ -16,7 +16,7 @@ ZoneTable build_zones(const Structure& geom, int n_shells, double shell_rel_tol)
     double d;
   };
   std::vector<Pair> pairs;
-  pairs.reserve(static_cast<size_t>(N) * N * 27);
+  pairs.reserve(static_cast<size_t>(N) * N * 27);  // 3x3x3 image block
 
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
