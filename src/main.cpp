@@ -4,6 +4,7 @@
 
 #include "exsqs/lattice.hpp"
 #include "exsqs/structure.hpp"
+#include "exsqs/symmetry.hpp"
 
 using namespace exsqs;
 
@@ -19,6 +20,13 @@ int main(int argc, char** argv) {
   if (a == "--demo-geom") {
     const Structure s = demo_cell();
     std::printf("demo-geom: sc 3x3x3 supercell -> %d sites\n", s.natoms());
+    return 0;
+  }
+  if (a == "--demo-sym") {
+    const Structure s = demo_cell();
+    const SymmetryInfo info = get_symmetry(s, 1e-5);
+    std::printf("demo-sym: empty cell SG=%d (%s), %zu ops\n", info.sg_number,
+                info.sg_symbol.c_str(), info.ops.size());
     return 0;
   }
   std::printf("exsqs 0.1.0 (development)\n");
