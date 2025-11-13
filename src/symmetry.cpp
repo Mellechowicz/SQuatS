@@ -64,7 +64,13 @@ SymmetryInfo get_symmetry(const Structure& s, double symprec) {
   trim(out.sg_symbol);
   trim(out.pointgroup);
 
-  // operation extraction lands with the permutation work
+  out.ops.resize(static_cast<size_t>(d->n_operations));
+  for (int k = 0; k < d->n_operations; ++k) {
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) out.ops[static_cast<size_t>(k)].R[i][j] = d->rotations[k][i][j];
+      out.ops[static_cast<size_t>(k)].t[i] = d->translations[k][i];
+    }
+  }
   out.equivalent_atoms.assign(d->equivalent_atoms, d->equivalent_atoms + N);
   spg_free_dataset(d);
   return out;
