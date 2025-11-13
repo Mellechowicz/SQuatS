@@ -61,7 +61,7 @@ ZoneTable build_zones(const Structure& geom, int n_shells, double shell_rel_tol)
     per_site[p.i][sh]++;
   }
 
-  zt.coord_num = per_site[0];
+  zt.coord_num = per_site[0];  // reference coordination from site 0
   for (int i = 1; i < N; ++i)
     if (per_site[i] != zt.coord_num)
       throw std::runtime_error(
