@@ -16,7 +16,7 @@ ZoneTable build_zones(const Structure& geom, int n_shells, double shell_rel_tol)
     double d;
   };
   std::vector<Pair> pairs;
-  pairs.reserve(static_cast<size_t>(N) * N * 27);  // 3x3x3 image block
+  pairs.reserve(static_cast<size_t>(N) * N * 27);
 
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
@@ -61,15 +61,21 @@ ZoneTable build_zones(const Structure& geom, int n_shells, double shell_rel_tol)
     per_site[p.i][sh]++;
   }
 
-  zt.coord_num = per_site[0];  // reference coordination from site 0
+  zt.coord_num = per_site[0];
   for (int i = 1; i < N; ++i)
     if (per_site[i] != zt.coord_num)
       throw std::runtime_error(
           "build_zones: sites do not form a single orbit (unequal coordination); "
           "v1 requires one Wyckoff orbit");
 
-  zt.half_min_width = 0.0;  // minimum-image guard comes later
-  zt.shells_exceed_half_width = false;
+  const double V = std::abs(det(geom.cell));
+  double wmin = 1e300;
+  for (int i = 0; i < 3; ++i) {
+    const Vec3 ar = cross(geom.cell[(i + 1) % 3], geom.cell[(i + 2) % 3]);
+    wmin = std::min(wmin, V / norm(ar));
+  }
+  zt.half_min_width = 0.5 * wmin;
+  zt.shells_exceed_half_width = zt.radii.back() > zt.half_min_width;
   return zt;
 }
 
