@@ -76,9 +76,35 @@ SymmetryInfo get_symmetry(const Structure& s, double symprec) {
   return out;
 }
 
+std::vector<Mat3i> site_symmetry(const Structure& s, const SymmetryInfo& info, int atom,
+                                 double symprec) {
+  std::vector<Mat3i> out;
+  const Vec3& fa = s.frac[static_cast<size_t>(atom)];
+  for (const auto& op : info.ops) {
+    const Vec3 rp = apply_rot(op.R, fa) + op.t;
+    Vec3 diff = fa - rp;
+    for (int c = 0; c < 3; ++c) diff[c] -= std::nearbyint(diff[c]);
+    if (norm(frac_to_cart(diff, s.cell)) < symprec) out.push_back(op.R);
+  }
+  return out;
+}
+
+
 std::string spglib_version() {
   return std::to_string(spg_get_major_version()) + "." + std::to_string(spg_get_minor_version()) +
          "." + std::to_string(spg_get_micro_version());
+}
+
+int pointgroup_order(const SymmetryInfo& info) {
+  int n_trans = 0;
+  for (const auto& op : info.ops) {
+    bool ident = true;
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        if (op.R[i][j] != ((i == j) ? 1 : 0)) ident = false;
+    if (ident) ++n_trans;
+  }
+  return n_trans > 0 ? static_cast<int>(info.ops.size()) / n_trans : 0;
 }
 
 }  // namespace exsqs
