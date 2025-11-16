@@ -8,6 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# geometry + zones core
 add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
