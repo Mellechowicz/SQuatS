@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     const ZoneTable zt = build_zones(s, 5, 1e-3);
     std::printf("demo-zones: %d shell radii:", zt.n_shells);
     for (double r : zt.radii) std::printf(" %.4f", r);
-    std::printf("  (z1=%d neighbours)\n", zt.coord_num.empty() ? 0 : zt.coord_num[0]);
+    std::printf("  (z1 = %d neighbours)\n", zt.coord_num.empty() ? 0 : zt.coord_num[0]);
     return 0;
   }
   std::printf("exsqs 0.1.0 (development)\n");
