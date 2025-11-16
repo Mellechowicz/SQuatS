@@ -25,6 +25,7 @@ add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
   src/symmetry.cpp
+  src/displacements.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)
