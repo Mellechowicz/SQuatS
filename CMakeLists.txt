@@ -8,11 +8,11 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# geometry + zones core
 add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
   src/zones.cpp
+  src/correlation.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
