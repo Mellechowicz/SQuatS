@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
   if (a == "--demo-sym") {
     const Structure s = demo_cell();
     const SymmetryInfo info = get_symmetry(s, 1e-5);
-    std::printf("demo-sym: undecorated cell SG=%d (%s), %zu ops\n", info.sg_number,
+    std::printf("demo-sym: undecorated cell SG=%d (%s), %zu symmetry ops\n", info.sg_number,
                 info.sg_symbol.c_str(), info.ops.size());
     return 0;
   }
