@@ -19,7 +19,7 @@ FetchContent_Declare(spglib
   GIT_REPOSITORY https://github.com/spglib/spglib.git
   GIT_TAG v2.7.0
   GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(spglib)
+FetchContent_MakeAvailable(spglib)  # pinned release
 
 add_library(exsqs_core
   src/structure.cpp
