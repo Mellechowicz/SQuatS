@@ -21,6 +21,7 @@ double CorrData::pi(int n, int t, int t2) const {
   return static_cast<double>(getC(n, t, t2)) / static_cast<double>(p);
 }
 
+// C indexed as (shell, t, t2); P as (shell, t)
 CorrData count_pairs(const Structure& s, const ZoneTable& zt) {
   CorrData d;
   d.n_shells = zt.n_shells;
