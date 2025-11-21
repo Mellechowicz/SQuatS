@@ -29,6 +29,6 @@ int main(int argc, char** argv) {
                 info.sg_symbol.c_str(), info.ops.size());
     return 0;
   }
-  std::printf("exsqs 0.1.0 (development)\n");
+  std::printf("exsqs 0.1.1 (development)\n");
   return 0;
 }
