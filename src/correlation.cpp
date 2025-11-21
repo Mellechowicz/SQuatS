@@ -8,10 +8,22 @@ namespace exsqs {
 std::vector<double> make_weights(WeightForm form, const ZoneTable& zt, double p,
                                  const std::vector<double>& custom) {
   std::vector<double> w(zt.n_shells, 0.0);
-  (void)form;
-  (void)p;
-  (void)custom;
-  for (int n = 0; n < zt.n_shells; ++n) w[n] = 1.0 / (n + 1);  // inv_n only for now
+  switch (form) {
+    case WeightForm::InvN:
+      for (int n = 0; n < zt.n_shells; ++n) w[n] = 1.0 / (n + 1);
+      break;
+    case WeightForm::InvNPow:
+      for (int n = 0; n < zt.n_shells; ++n) w[n] = 1.0 / std::pow(n + 1.0, p);
+      break;
+    case WeightForm::InvR:
+      for (int n = 0; n < zt.n_shells; ++n) w[n] = 1.0 / zt.radii[n];
+      break;
+    case WeightForm::Custom:
+      if (static_cast<int>(custom.size()) != zt.n_shells)
+        throw std::runtime_error("make_weights: custom weight size mismatch");
+      w = custom;
+      break;
+  }
   return w;
 }
 
@@ -21,7 +33,6 @@ double CorrData::pi(int n, int t, int t2) const {
   return static_cast<double>(getC(n, t, t2)) / static_cast<double>(p);
 }
 
-// C indexed as (shell, t, t2); P as (shell, t)
 CorrData count_pairs(const Structure& s, const ZoneTable& zt) {
   CorrData d;
   d.n_shells = zt.n_shells;
@@ -51,5 +62,21 @@ double e_pure_diagonal(const CorrData& cd, const std::vector<double>& x,
     }
   return E;
 }
+
+double e_pure_full(const CorrData& cd, const std::vector<double>& x,
+                   const std::vector<double>& w) {
+  double E = 0.0;
+  for (int n = 0; n < cd.n_shells; ++n)
+    for (int t = 0; t < cd.K; ++t) {
+      const long long p = cd.getP(n, t);
+      if (p == 0) continue;
+      for (int t2 = 0; t2 < cd.K; ++t2) {
+        const double pi = static_cast<double>(cd.getC(n, t, t2)) / p;
+        E += w[n] * std::abs(pi - x[t2]);
+      }
+    }
+  return E;
+}
+
 
 }  // namespace exsqs
