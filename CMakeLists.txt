@@ -10,6 +10,7 @@ endif()
 
 include(FetchContent)
 
+# spglib build options
 set(SPGLIB_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(SPGLIB_WITH_Fortran OFF CACHE BOOL "" FORCE)
 set(SPGLIB_WITH_Python OFF CACHE BOOL "" FORCE)
