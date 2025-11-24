@@ -79,4 +79,32 @@ double e_pure_full(const CorrData& cd, const std::vector<double>& x,
 }
 
 
+double e_floor_diagonal(const ZoneTable& zt, const std::vector<int>& counts,
+                        const std::vector<double>& x, const std::vector<double>& w) {
+  double f = 0.0;
+  for (int n = 0; n < zt.n_shells; ++n)
+    for (size_t t = 0; t < counts.size(); ++t) {
+      if (counts[t] <= 0) continue;
+      const double P = static_cast<double>(counts[t]) * zt.coord_num[static_cast<size_t>(n)];
+      const double v = x[t] * P;
+      f += w[static_cast<size_t>(n)] * std::abs(v - std::round(v)) / P;
+    }
+  return f;
+}
+
+double e_floor_full(const ZoneTable& zt, const std::vector<int>& counts,
+                    const std::vector<double>& x, const std::vector<double>& w) {
+  double f = 0.0;
+  for (int n = 0; n < zt.n_shells; ++n)
+    for (size_t t = 0; t < counts.size(); ++t) {
+      if (counts[t] <= 0) continue;
+      const double P = static_cast<double>(counts[t]) * zt.coord_num[static_cast<size_t>(n)];
+      for (size_t u = 0; u < counts.size(); ++u) {
+        const double v = x[u] * P;
+        f += w[static_cast<size_t>(n)] * std::abs(v - std::round(v)) / P;
+      }
+    }
+  return f;
+}
+
 }  // namespace exsqs
