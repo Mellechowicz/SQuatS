@@ -5,6 +5,7 @@
 #include "exsqs/lattice.hpp"
 #include "exsqs/structure.hpp"
 #include "exsqs/zones.hpp"
+#include "exsqs/symmetry.hpp"
 
 using namespace exsqs;
 
@@ -28,6 +29,13 @@ int main(int argc, char** argv) {
     std::printf("demo-zones: %d shells:", zt.n_shells);
     for (double r : zt.radii) std::printf(" %.4f", r);
     std::printf("  (z1=%d)\n", zt.coord_num.empty() ? 0 : zt.coord_num[0]);
+    return 0;
+  }
+  if (a == "--demo-sym") {
+    const Structure s = demo_cell();
+    const SymmetryInfo info = get_symmetry(s, 1e-5);
+    std::printf("demo-sym: empty cell SG=%d (%s), %zu ops\n", info.sg_number,
+                info.sg_symbol.c_str(), info.ops.size());
     return 0;
   }
   std::printf("exsqs 0.2.0 (development)\n");
