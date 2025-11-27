@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     const CorrData cd = count_pairs(dec, zt);
     const std::vector<double> w = make_weights(WeightForm::InvN, zt);
     const std::vector<double> x = {0.5, 0.5};  // ideal 50/50 target
-    std::printf("demo-corr: alternating decoration E_pure=%.6e\n", e_pure_diagonal(cd, x, w));
+    std::printf("demo-corr: alternating decoration E_pure=%.8e\n", e_pure_diagonal(cd, x, w));
     return 0;
   }
   std::printf("exsqs 0.2.0 (development)\n");
