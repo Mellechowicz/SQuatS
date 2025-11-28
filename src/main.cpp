@@ -6,6 +6,7 @@
 #include "exsqs/structure.hpp"
 #include "exsqs/zones.hpp"
 #include "exsqs/symmetry.hpp"
+#include "exsqs/dedup.hpp"
 
 using namespace exsqs;
 
@@ -36,6 +37,11 @@ int main(int argc, char** argv) {
     const SymmetryInfo info = get_symmetry(s, 1e-5);
     std::printf("demo-sym: empty cell SG=%d (%s), %zu ops\n", info.sg_number,
                 info.sg_symbol.c_str(), info.ops.size());
+    return 0;
+  }
+  if (a == "--demo-group") {
+    const Structure g = demo_cell();
+    std::printf("demo-group: |Pi| = %zu site permutations\n", site_permutations(g, 1e-5).size());
     return 0;
   }
   std::printf("exsqs 0.2.0 (development)\n");
