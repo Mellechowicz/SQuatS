@@ -12,7 +12,7 @@ add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
   src/zones.cpp
-  src/correlation.cpp
+  src/correlation.cpp  # pair statistics
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
