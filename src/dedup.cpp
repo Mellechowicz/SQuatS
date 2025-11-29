@@ -14,6 +14,7 @@ namespace {
 // Quantize a fractional coordinate wrapped into [0,1) to a 1e-6 grid. Ideal
 // lattice positions are exact rationals, so 1e-6 quantization with the 1e-8
 // wrap guard is collision-free and rounding-stable.
+// wrap, then round to the 1e-6 grid
 std::array<long long, 3> qkey(const Vec3& f) {
   std::array<long long, 3> k;
   for (int c = 0; c < 3; ++c) {
