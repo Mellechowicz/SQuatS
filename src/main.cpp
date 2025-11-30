@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   }
   if (a == "--demo-corr") {
     const Structure g = demo_cell();
-    const ZoneTable zt = build_zones(g, 3, 1e-3);
+    const ZoneTable zt = build_zones(g, 3, 1.0e-3);
     std::vector<int> sigma(static_cast<size_t>(g.natoms()));
     for (size_t i = 0; i < sigma.size(); ++i) sigma[i] = static_cast<int>(i % 2);
     const Structure dec = decorate(g, sigma, {"W", "Cr"});
