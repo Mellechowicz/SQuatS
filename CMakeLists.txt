@@ -27,7 +27,7 @@ add_library(exsqs_core
   src/zones.cpp
   src/symmetry.cpp
   src/displacements.cpp
-  src/dedup.cpp
+  src/dedup.cpp  # canonical labels
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)
