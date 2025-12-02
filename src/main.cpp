@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     const ZoneTable zt = build_zones(g, 3, 1.0e-3);
     std::vector<int> sigma(static_cast<size_t>(g.natoms()));
     for (size_t i = 0; i < sigma.size(); ++i) sigma[i] = static_cast<int>(i % 2);
-    const Structure dec = decorate(g, sigma, {"W", "Cr"});
+    const Structure dec = decorate(g, sigma, {"W", "Cr"});  // labels only affect reporting
     const CorrData cd = count_pairs(dec, zt);
     const std::vector<double> w = make_weights(WeightForm::InvN, zt);
     const std::vector<double> x = {0.5, 0.5};  // ideal 50/50 target
