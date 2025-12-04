@@ -6,6 +6,7 @@
 #include "exsqs/structure.hpp"
 #include "exsqs/zones.hpp"
 #include "exsqs/symmetry.hpp"
+#include "exsqs/correlation.hpp"
 
 using namespace exsqs;
 
@@ -38,6 +39,18 @@ int main(int argc, char** argv) {
                 info.sg_symbol.c_str(), info.ops.size());
     return 0;
   }
-  std::printf("exsqs 0.2.0 (development)\n");
+  if (a == "--demo-corr") {
+    const Structure g = demo_cell();
+    const ZoneTable zt = build_zones(g, 3, 1e-3);
+    std::vector<int> sigma(static_cast<size_t>(g.natoms()));
+    for (size_t i = 0; i < sigma.size(); ++i) sigma[i] = static_cast<int>(i % 2);
+    const Structure dec = decorate(g, sigma, {"W", "Cr"});
+    const CorrData cd = count_pairs(dec, zt);
+    const std::vector<double> w = make_weights(WeightForm::InvN, zt);
+    const std::vector<double> x = {0.5, 0.5};
+    std::printf("demo-corr: alternating decoration E_pure=%.6e\n", e_pure_diagonal(cd, x, w));
+    return 0;
+  }
+  std::printf("exsqs 0.3.0 (development)\n");
   return 0;
 }
