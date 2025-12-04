@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
   }
   if (a == "--demo-group") {
     const Structure g = demo_cell();
-    std::printf("demo-group: |Pi| =%4zu supercell site permutations\n", site_permutations(g, 1e-5).size());  // species-blind
+    std::printf("demo-group: |Pi| = %zu supercell site permutations\n", site_permutations(g, 1e-5).size());  // species-blind
     return 0;
   }
   std::printf("exsqs 0.2.0 (development)\n");
