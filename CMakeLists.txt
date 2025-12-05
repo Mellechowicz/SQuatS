@@ -21,6 +21,16 @@ FetchContent_Declare(spglib
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(spglib)
 
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
+set(YAML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(yamlcpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG 0.8.0
+  GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(yamlcpp)
+
 add_library(exsqs_core
   src/structure.cpp
   src/lattice.cpp
@@ -28,12 +38,18 @@ add_library(exsqs_core
   src/symmetry.cpp
   src/displacements.cpp
   src/correlation.cpp
+  src/config.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)
   target_link_libraries(exsqs_core PUBLIC Spglib::symspg)
 else()
   target_link_libraries(exsqs_core PUBLIC symspg)
+endif()
+if(TARGET yaml-cpp::yaml-cpp)
+  target_link_libraries(exsqs_core PRIVATE yaml-cpp::yaml-cpp)
+else()
+  target_link_libraries(exsqs_core PRIVATE yaml-cpp)
 endif()
 
 add_executable(exsqs src/main.cpp)
