@@ -44,6 +44,6 @@ int main(int argc, char** argv) {
     std::printf("demo-group: |Pi| = %zu supercell site permutations\n", site_permutations(g, 1e-5).size());  // species-blind
     return 0;
   }
-  std::printf("exsqs 0.2.0 (development)\n");
+  std::printf("exsqs 0.2.1 (development)\n");
   return 0;
 }
