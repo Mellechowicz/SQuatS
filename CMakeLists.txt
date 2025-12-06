@@ -28,6 +28,7 @@ add_library(exsqs_core
   src/symmetry.cpp
   src/displacements.cpp
   src/correlation.cpp
+  src/dedup.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)

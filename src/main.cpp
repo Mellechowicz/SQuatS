@@ -7,6 +7,7 @@
 #include "exsqs/zones.hpp"
 #include "exsqs/symmetry.hpp"
 #include "exsqs/correlation.hpp"
+#include "exsqs/dedup.hpp"
 
 using namespace exsqs;
 
@@ -49,6 +50,11 @@ int main(int argc, char** argv) {
     const std::vector<double> w = make_weights(WeightForm::InvN, zt);
     const std::vector<double> x = {0.5, 0.5};
     std::printf("demo-corr: alternating decoration E_pure=%.6e\n", e_pure_diagonal(cd, x, w));
+    return 0;
+  }
+  if (a == "--demo-group") {
+    const Structure g = demo_cell();
+    std::printf("demo-group: |Pi| = %zu site permutations\n", site_permutations(g, 1e-5).size());
     return 0;
   }
   std::printf("exsqs 0.3.0 (development)\n");
