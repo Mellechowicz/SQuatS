@@ -4,9 +4,11 @@
 
 #include "exsqs/lattice.hpp"
 #include "exsqs/structure.hpp"
+#include <exception>
 #include "exsqs/zones.hpp"
 #include "exsqs/symmetry.hpp"
 #include "exsqs/correlation.hpp"
+#include "exsqs/config.hpp"
 
 using namespace exsqs;
 
@@ -19,6 +21,22 @@ Structure demo_cell() {
 
 int main(int argc, char** argv) {
   const std::string a = argc > 1 ? argv[1] : "";
+  if (!a.empty() && a[0] != '-') {
+    std::vector<std::string> ovr;
+    for (int i = 2; i + 1 < argc; ++i)
+      if (std::string(argv[i]) == "--set") ovr.push_back(argv[++i]);
+    try {
+      const RunConfig cfg = load_config(a, ovr);
+      std::printf("config: %zu species |", cfg.species.size());
+      for (size_t t = 0; t < cfg.species.size(); ++t)
+        std::printf(" %s=%d", cfg.species[t].c_str(), cfg.counts[t]);
+      std::printf("\n");
+      return 0;
+    } catch (const std::exception& e) {
+      std::fprintf(stderr, "exsqs error: %s\n", e.what());
+      return 1;
+    }
+  }
   if (a == "--demo-geom") {
     const Structure s = demo_cell();
     std::printf("demo-geom: sc 3x3x3 supercell -> %d sites\n", s.natoms());
