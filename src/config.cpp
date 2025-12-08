@@ -13,6 +13,7 @@ namespace {
 
 [[noreturn]] void fail(const std::string& m) { throw std::runtime_error("config: " + m); }
 
+// --set a.b.c=value assigns into the parsed tree before reading
 void apply_override(YAML::Node root, const std::string& kv) {
   const size_t eq = kv.find('=');
   if (eq == std::string::npos) fail("--set expects key=value, got '" + kv + "'");
