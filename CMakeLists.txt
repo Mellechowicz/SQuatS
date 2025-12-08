@@ -29,7 +29,7 @@ FetchContent_Declare(yamlcpp
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
   GIT_TAG 0.8.0
   GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(yamlcpp)
+FetchContent_MakeAvailable(yamlcpp)  # pinned release
 
 add_library(exsqs_core
   src/structure.cpp
