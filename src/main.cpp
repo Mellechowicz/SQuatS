@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
       const RunConfig cfg = load_config(a, ovr);
       std::printf("config: %zu species:", cfg.species.size());
       for (size_t t = 0; t < cfg.species.size(); ++t)
-        std::printf(" %s=%d", cfg.species[t].c_str(), cfg.counts[t]);
+        std::printf(" %s=%d", cfg.species[t].c_str()  /* counts follow [A5] rounding */, cfg.counts[t]);
       std::printf("\n");
       return 0;
     } catch (const std::exception& e) {
