@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
       if (std::string(argv[i]) == "--set") ovr.push_back(argv[++i]);
     try {
       const RunConfig cfg = load_config(a, ovr);
-      std::printf("config: %zu species:", cfg.species.size());
+      std::printf("config: %zu species ->", cfg.species.size());
       for (size_t t = 0; t < cfg.species.size(); ++t)
         std::printf(" %s=%d", cfg.species[t].c_str()  /* counts follow [A5] rounding */, cfg.counts[t]);
       std::printf("\n");
