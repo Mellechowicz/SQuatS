@@ -69,6 +69,6 @@ int main(int argc, char** argv) {
     std::printf("demo-corr: alternating decoration E_pure=%.6e\n", e_pure_diagonal(cd, x, w));
     return 0;
   }
-  std::printf("exsqs 0.3.0 (development)\n");
+  std::printf("exsqs 0.3.1 (development)\n");
   return 0;
 }
