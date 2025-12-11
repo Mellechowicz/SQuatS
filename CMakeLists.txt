@@ -21,6 +21,7 @@ FetchContent_Declare(spglib
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(spglib)
 
+# yaml-cpp build options
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
