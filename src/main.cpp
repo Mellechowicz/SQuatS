@@ -27,9 +27,9 @@ int main(int argc, char** argv) {
       if (std::string(argv[i]) == "--set") ovr.push_back(argv[++i]);
     try {
       const RunConfig cfg = load_config(a, ovr);
-      std::printf("config: %zu species ->", cfg.species.size());
+      std::printf("config: %zu species |", cfg.species.size());
       for (size_t t = 0; t < cfg.species.size(); ++t)
-        std::printf(" %s=%d", cfg.species[t].c_str()  /* counts follow [A5] rounding */, cfg.counts[t]);
+        std::printf(" %s=%d", cfg.species[t].c_str(), cfg.counts[t]);
       std::printf("\n");
       return 0;
     } catch (const std::exception& e) {
@@ -69,6 +69,6 @@ int main(int argc, char** argv) {
     std::printf("demo-corr: alternating decoration E_pure=%.6e\n", e_pure_diagonal(cd, x, w));
     return 0;
   }
-  std::printf("exsqs 0.3.1 (development)\n");
+  std::printf("exsqs 0.4.0 (development)\n");
   return 0;
 }
