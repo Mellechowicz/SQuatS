@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(exsqs VERSION 0.4.0 LANGUAGES C CXX)
+project(exsqs VERSION 0.5.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +40,7 @@ add_library(exsqs_core
   src/correlation.cpp
   src/dedup.cpp
   src/config.cpp
+  src/evolution.cpp
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)
