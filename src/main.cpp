@@ -10,6 +10,7 @@
 #include "exsqs/correlation.hpp"
 #include "exsqs/dedup.hpp"
 #include "exsqs/config.hpp"
+#include "exsqs/evolution.hpp"
 
 using namespace exsqs;
 
@@ -32,6 +33,8 @@ int main(int argc, char** argv) {
       for (size_t t = 0; t < cfg.species.size(); ++t)
         std::printf(" %s=%d", cfg.species[t].c_str(), cfg.counts[t]);
       std::printf("\n");
+      const RunContext ctx = RunContext::build(cfg);
+      std::printf("E_floor=%.6e (%d sites)\n", ctx.e_floor, ctx.geom.natoms());
       return 0;
     } catch (const std::exception& e) {
       std::fprintf(stderr, "exsqs error: %s\n", e.what());
