@@ -43,4 +43,30 @@ std::vector<int> composition_sigma(const RunConfig& cfg) {
   return s;
 }
 
+Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int> sigma) {
+  Individual I;
+  const Structure dec = decorate(ctx.geom, sigma, cfg.species);
+  const CorrData cd = count_pairs(dec, ctx.zones);
+  I.e_pure = cfg.full_pairs ? e_pure_full(cd, cfg.x_achieved, ctx.weights)
+                            : e_pure_diagonal(cd, cfg.x_achieved, ctx.weights);
+  const SymmetryInfo info = get_symmetry(dec, cfg.symprec);
+  I.sg = info.sg_number;
+  I.sg_symbol = info.sg_symbol;
+  I.D = displacement_count(dec, info, cfg.symprec);
+  I.e_obj = I.e_pure * std::pow(static_cast<double>(I.D), cfg.gamma);
+  I.sigma = std::move(sigma);
+  return I;
+}
+
+namespace {
+
+void consider_output(std::vector<Individual>& top, const Individual& I, int M) {
+  top.push_back(I);
+  std::sort(top.begin(), top.end(),
+            [](const Individual& a, const Individual& b) { return a.e_obj < b.e_obj; });
+  if (static_cast<int>(top.size()) > M) top.resize(static_cast<size_t>(M));
+}
+
+}  // namespace
+
 }  // namespace exsqs
