@@ -53,6 +53,7 @@ Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int
   I.sg = info.sg_number;
   I.sg_symbol = info.sg_symbol;
   I.D = displacement_count(dec, info, cfg.symprec);
+  // scalarized objective: correlation error times D^gamma
   I.e_obj = I.e_pure * std::pow(static_cast<double>(I.D), cfg.gamma);
   I.sigma = std::move(sigma);
   return I;
