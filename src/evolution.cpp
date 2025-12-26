@@ -53,7 +53,6 @@ Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int
   I.sg = info.sg_number;
   I.sg_symbol = info.sg_symbol;
   I.D = displacement_count(dec, info, cfg.symprec);
-  // scalarized objective: correlation error times D^gamma
   I.e_obj = I.e_pure * std::pow(static_cast<double>(I.D), cfg.gamma);
   I.sigma = std::move(sigma);
   return I;
@@ -69,5 +68,99 @@ void consider_output(std::vector<Individual>& top, const Individual& I, int M) {
 }
 
 }  // namespace
+
+RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
+  RunOutput out;
+  std::set<std::vector<uint8_t>> archive;
+  std::vector<Individual> pop;
+  const double tol = effective_e_tol(cfg, ctx);
+
+  // admit: canonical dedup [A10] -> evaluate. The minimal build admits P1
+  // decorations (random seeds at large N are always P1); the D^gamma term of
+  // the objective still rewards symmetry whenever gamma > 0. The strict P1
+  // rejection filter and constructive space-group seeding are extensions.
+  auto admit = [&](std::vector<int> sigma, Individual& I) -> bool {
+    std::vector<uint8_t> labels = canonical_labels(sigma, ctx.perms);
+    if (archive.count(labels)) return false;
+    archive.insert(labels);
+    out.evals++;
+    I = evaluate(cfg, ctx, std::move(sigma));
+    I.canonical = std::move(labels);
+    consider_output(out.outputs, I, cfg.outputs);
+    return true;
+  };
+
+  // seeding: random shuffles of the exact composition [A5]
+  {
+    uint64_t slot = 0;
+    long budget = static_cast<long>(cfg.retry_budget) * cfg.population;
+    while (static_cast<int>(pop.size()) < cfg.population && budget-- > 0) {
+      std::vector<int> s = composition_sigma(cfg);
+      CounterRng rng(cfg.seed, 0, 0, slot++, RngPurpose::SeedInit);
+      rng.shuffle(s.begin(), s.end());
+      Individual I;
+      if (admit(std::move(s), I)) pop.push_back(std::move(I));
+    }
+  }
+  if (pop.empty()) throw std::runtime_error("evolution: seeding produced no admissible individual");
+
+  int g = 0;
+  for (g = 1; g <= cfg.max_generations; ++g) {
+    std::sort(pop.begin(), pop.end(),
+              [](const Individual& a, const Individual& b) { return a.e_obj < b.e_obj; });
+    if (pop.front().e_pure <= tol) {
+      out.success = true;
+      break;
+    }
+    // extinction [A11]: ratio keeps the better half; metropolis draws survival
+    const size_t before = pop.size();
+    std::vector<Individual> next;
+    const size_t keep = std::max<size_t>(static_cast<size_t>(cfg.elitism_best),
+                                         pop.size() / 2);
+    for (size_t i = 0; i < keep && i < pop.size(); ++i) next.push_back(std::move(pop[i]));
+    const int killed = static_cast<int>(before - next.size());
+    pop.swap(next);
+
+    // repopulation: unlike-pair swap mutation of uniformly picked parents [A12]
+    bool any_admitted = false;
+    uint64_t slot = 0;
+    int budget = cfg.retry_budget;
+    while (static_cast<int>(pop.size()) < cfg.population && budget > 0) {
+      CounterRng pick(cfg.seed, 0, static_cast<uint64_t>(g), slot, RngPurpose::ParentPick);
+      const Individual& parent =
+          pop[static_cast<size_t>(pick.uniform() * static_cast<double>(pop.size())) % pop.size()];
+      std::vector<int> child = parent.sigma;
+      CounterRng mut(cfg.seed, 0, static_cast<uint64_t>(g), slot, RngPurpose::Mutation);
+      for (int sw = 0; sw < std::max(1, cfg.mut_swaps); ++sw) {
+        for (int attempt = 0; attempt < 64; ++attempt) {
+          const size_t i = static_cast<size_t>(mut.uniform() * child.size()) % child.size();
+          const size_t j = static_cast<size_t>(mut.uniform() * child.size()) % child.size();
+          if (child[i] != child[j]) {
+            std::swap(child[i], child[j]);
+            break;
+          }
+        }
+      }
+      ++slot;
+      Individual I;
+      if (admit(std::move(child), I)) {
+        pop.push_back(std::move(I));
+        any_admitted = true;
+      } else {
+        --budget;
+      }
+    }
+    std::sort(pop.begin(), pop.end(),
+              [](const Individual& a, const Individual& b) { return a.e_obj < b.e_obj; });
+    out.log.push_back({g, pop.front().e_pure, out.evals, killed});
+    if (cfg.log_info)
+      std::printf("[gen %4d] E_pure*=%.6e E_obj*=%.6e D*=%4d SG*=%3d kill=%3d ev=%ld\n", g,
+                  pop.front().e_pure, pop.front().e_obj, pop.front().D, pop.front().sg, killed,
+                  out.evals);
+    (void)any_admitted;
+  }
+  out.generations = std::min(g, cfg.max_generations);
+  return out;
+}
 
 }  // namespace exsqs
