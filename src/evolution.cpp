@@ -104,6 +104,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   }
   if (pop.empty()) throw std::runtime_error("evolution: seeding produced no admissible individual");
 
+  int stagnant = 0;
   int g = 0;
   for (g = 1; g <= cfg.max_generations; ++g) {
     std::sort(pop.begin(), pop.end(),
@@ -115,9 +116,27 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
     // extinction [A11]: ratio keeps the better half; metropolis draws survival
     const size_t before = pop.size();
     std::vector<Individual> next;
-    const size_t keep = std::max<size_t>(static_cast<size_t>(cfg.elitism_best),
-                                         pop.size() / 2);
-    for (size_t i = 0; i < keep && i < pop.size(); ++i) next.push_back(std::move(pop[i]));
+    if (cfg.metropolis) {
+      double beta = cfg.beta;
+      if (beta <= 0) {
+        const double emin = pop.front().e_obj;
+        std::vector<double> gaps;
+        for (const Individual& I : pop) gaps.push_back(I.e_obj - emin);
+        std::nth_element(gaps.begin(), gaps.begin() + gaps.size() / 2, gaps.end());
+        const double med = std::max(1e-300, gaps[gaps.size() / 2]);
+        beta = std::log(2.0) / med;
+      }
+      for (size_t i = 0; i < pop.size(); ++i) {
+        CounterRng rng(cfg.seed, 0, static_cast<uint64_t>(g), i, RngPurpose::ExtinctionDraw);
+        const double p = std::exp(-beta * (pop[i].e_obj - pop.front().e_obj));
+        if (static_cast<int>(i) < cfg.elitism_best || rng.uniform() < p)
+          next.push_back(std::move(pop[i]));
+      }
+    } else {
+      const size_t keep = std::max<size_t>(static_cast<size_t>(cfg.elitism_best),
+                                           pop.size() / 2);
+      for (size_t i = 0; i < keep && i < pop.size(); ++i) next.push_back(std::move(pop[i]));
+    }
     const int killed = static_cast<int>(before - next.size());
     pop.swap(next);
 
@@ -157,7 +176,11 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
       std::printf("[gen %4d] E_pure*=%.6e E_obj*=%.6e D*=%4d SG*=%3d kill=%3d ev=%ld\n", g,
                   pop.front().e_pure, pop.front().e_obj, pop.front().D, pop.front().sg, killed,
                   out.evals);
-    (void)any_admitted;
+    if (!any_admitted) {
+      if (cfg.stagnation_stop > 0 && ++stagnant >= cfg.stagnation_stop) break;  // [A13]
+    } else {
+      stagnant = 0;
+    }
   }
   out.generations = std::min(g, cfg.max_generations);
   return out;
