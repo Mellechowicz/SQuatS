@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     }
   }
   if (path.empty()) {
-    std::fprintf(stderr, "usage: exsqs <config.yaml> [--set key=value ...] [--out DIR]\n");
+    std::fprintf(stderr, "usage: exsqs <config.yaml> [--set key=value ...] [--out DIR]\nruns the extinction loop and prints the archived structures\n");
     return 1;
   }
   try {
