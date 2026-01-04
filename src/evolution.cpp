@@ -93,6 +93,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   // seeding: random shuffles of the exact composition [A5]
   {
     uint64_t slot = 0;
+    // seeding may reject duplicates; budget scales with the population
     long budget = static_cast<long>(cfg.retry_budget) * cfg.population;
     while (static_cast<int>(pop.size()) < cfg.population && budget-- > 0) {
       std::vector<int> s = composition_sigma(cfg);
