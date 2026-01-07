@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   try {
     const exsqs::RunConfig cfg = exsqs::load_config(path, ovr);
     const exsqs::RunContext ctx = exsqs::RunContext::build(cfg);
-    std::printf("exsqs 0.5.0 | %d sites | run | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
+    std::printf("exsqs 0.5.0 | %d sites | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
     const exsqs::RunOutput out = exsqs::run_evolution(cfg, ctx);
     for (const exsqs::Individual& I : out.outputs)
       std::printf("  E_pure=%.6e D=%4d E_obj=%.6e SG=%d (%s)\n", I.e_pure, I.D, I.e_obj, I.sg,
