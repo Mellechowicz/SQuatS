@@ -40,7 +40,7 @@ add_library(exsqs_core
   src/correlation.cpp
   src/dedup.cpp
   src/config.cpp
-  src/evolution.cpp
+  src/evolution.cpp  # extinction engine
 )
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(TARGET Spglib::symspg)
