@@ -130,6 +130,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
       for (size_t i = 0; i < pop.size(); ++i) {
         CounterRng rng(cfg.seed, 0, static_cast<uint64_t>(g), i, RngPurpose::ExtinctionDraw);
         const double p = std::exp(-beta * (pop[i].e_obj - pop.front().e_obj));
+        // the best elitism_best individuals always survive
         if (static_cast<int>(i) < cfg.elitism_best || rng.uniform() < p)
           next.push_back(std::move(pop[i]));
       }
