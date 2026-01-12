@@ -53,5 +53,6 @@ double effective_e_tol(const RunConfig& cfg, const RunContext& ctx);
 std::vector<int> composition_sigma(const RunConfig& cfg);
 Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int> sigma);
 RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx);
+void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out);
 
 }  // namespace exsqs
