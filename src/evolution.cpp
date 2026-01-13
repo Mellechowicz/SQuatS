@@ -93,7 +93,6 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   // seeding: random shuffles of the exact composition [A5]
   {
     uint64_t slot = 0;
-    // seeding may reject duplicates; budget scales with the population
     long budget = static_cast<long>(cfg.retry_budget) * cfg.population;
     while (static_cast<int>(pop.size()) < cfg.population && budget-- > 0) {
       std::vector<int> s = composition_sigma(cfg);
@@ -130,7 +129,6 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
       for (size_t i = 0; i < pop.size(); ++i) {
         CounterRng rng(cfg.seed, 0, static_cast<uint64_t>(g), i, RngPurpose::ExtinctionDraw);
         const double p = std::exp(-beta * (pop[i].e_obj - pop.front().e_obj));
-        // the best elitism_best individuals always survive
         if (static_cast<int>(i) < cfg.elitism_best || rng.uniform() < p)
           next.push_back(std::move(pop[i]));
       }
@@ -186,6 +184,24 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   }
   out.generations = std::min(g, cfg.max_generations);
   return out;
+}
+
+void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out) {
+  namespace fs = std::filesystem;
+  fs::create_directories(cfg.outdir);
+  for (size_t i = 0; i < out.outputs.size(); ++i) {
+    const Individual& I = out.outputs[i];
+    char name[32];
+    std::snprintf(name, sizeof name, "best_%02zu.vasp", i);
+    const Structure dec = decorate(ctx.geom, I.sigma, cfg.species);
+    write_poscar(dec, cfg.outdir + "/" + name, "exsqs");
+    std::printf("  %s: E_pure=%.6e D=%4d SG=%d (%s)\n", name, I.e_pure, I.D, I.sg,
+                I.sg_symbol.c_str());
+  }
+  if (ctx.e_floor > 0)
+    std::printf("E_floor=%.6e | best E_pure/E_floor = %.2f\n", ctx.e_floor,
+                out.outputs.empty() ? 0.0 : out.outputs.front().e_pure / ctx.e_floor);
+  std::printf("outputs written to %s\n", cfg.outdir.c_str());
 }
 
 }  // namespace exsqs
