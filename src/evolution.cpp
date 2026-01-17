@@ -189,15 +189,33 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
 void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out) {
   namespace fs = std::filesystem;
   fs::create_directories(cfg.outdir);
+  const auto num = [](double v) {
+    char b[40];
+    std::snprintf(b, sizeof b, "%.17g", v);
+    return std::string(b);
+  };
+  std::ofstream j(cfg.outdir + "/summary.json", std::ios::trunc);
+  j << "{\n  \"exsqs_version\": \"1.0.0\",\n";
+  j << "  \"e_floor\": " << num(ctx.e_floor) << ",\n";
+  j << "  \"e_tol_effective\": " << num(effective_e_tol(cfg, ctx)) << ",\n";
+  j << "  \"total_evaluations\": " << out.evals << ",\n";
+  j << "  \"generations\": " << out.generations << ",\n";
+  j << "  \"success\": " << (out.success ? "true" : "false") << ",\n  \"outputs\": [\n";
   for (size_t i = 0; i < out.outputs.size(); ++i) {
     const Individual& I = out.outputs[i];
     char name[32];
     std::snprintf(name, sizeof name, "best_%02zu.vasp", i);
     const Structure dec = decorate(ctx.geom, I.sigma, cfg.species);
-    write_poscar(dec, cfg.outdir + "/" + name, "exsqs");
-    std::printf("  %s: E_pure=%.6e D=%4d SG=%d (%s)\n", name, I.e_pure, I.D, I.sg,
-                I.sg_symbol.c_str());
+    write_poscar(dec, cfg.outdir + "/" + name,
+                 "exsqs E_pure=" + num(I.e_pure) + " SG=" + I.sg_symbol);
+    j << "    {\"file\": \"" << name << "\", \"e_pure\": " << num(I.e_pure)
+      << ", \"e_obj\": " << num(I.e_obj) << ", \"D\": " << I.D << ", \"sg\": " << I.sg
+      << ", \"sg_symbol\": \"" << I.sg_symbol << "\"}" << (i + 1 < out.outputs.size() ? "," : "")
+      << "\n";
+    std::printf("  %s: E_pure=%.6e D=%4d E_obj=%.6e SG=%d (%s)\n", name, I.e_pure, I.D, I.e_obj,
+                I.sg, I.sg_symbol.c_str());
   }
+  j << "  ]\n}\n";
   if (ctx.e_floor > 0)
     std::printf("E_floor=%.6e | best E_pure/E_floor = %.2f\n", ctx.e_floor,
                 out.outputs.empty() ? 0.0 : out.outputs.front().e_pure / ctx.e_floor);
