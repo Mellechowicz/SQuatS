@@ -54,5 +54,6 @@ else()
   target_link_libraries(exsqs_core PRIVATE yaml-cpp)
 endif()
 
+# command-line driver
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
