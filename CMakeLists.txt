@@ -8,6 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# dependencies
 include(FetchContent)
 
 set(SPGLIB_SHARED_LIBS OFF CACHE BOOL "" FORCE)
