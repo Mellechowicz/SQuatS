@@ -93,7 +93,6 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   // seeding: random shuffles of the exact composition [A5]
   {
     uint64_t slot = 0;
-    // seeding may reject duplicates; budget scales with the population
     long budget = static_cast<long>(cfg.retry_budget) * cfg.population;
     while (static_cast<int>(pop.size()) < cfg.population && budget-- > 0) {
       std::vector<int> s = composition_sigma(cfg);
@@ -130,7 +129,6 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
       for (size_t i = 0; i < pop.size(); ++i) {
         CounterRng rng(cfg.seed, 0, static_cast<uint64_t>(g), i, RngPurpose::ExtinctionDraw);
         const double p = std::exp(-beta * (pop[i].e_obj - pop.front().e_obj));
-        // the best elitism_best individuals always survive
         if (static_cast<int>(i) < cfg.elitism_best || rng.uniform() < p)
           next.push_back(std::move(pop[i]));
       }
@@ -186,6 +184,42 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
   }
   out.generations = std::min(g, cfg.max_generations);
   return out;
+}
+
+void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out) {
+  namespace fs = std::filesystem;
+  fs::create_directories(cfg.outdir);
+  const auto num = [](double v) {
+    char b[40];
+    std::snprintf(b, sizeof b, "%.17g", v);
+    return std::string(b);
+  };
+  std::ofstream j(cfg.outdir + "/summary.json", std::ios::trunc);
+  j << "{\n  \"exsqs_version\": \"1.0.0\",\n";
+  j << "  \"e_floor\": " << num(ctx.e_floor) << ",\n";
+  j << "  \"e_tol_effective\": " << num(effective_e_tol(cfg, ctx)) << ",\n";
+  j << "  \"total_evaluations\": " << out.evals << ",\n";
+  j << "  \"generations\": " << out.generations << ",\n";
+  j << "  \"success\": " << (out.success ? "true" : "false") << ",\n  \"outputs\": [\n";
+  for (size_t i = 0; i < out.outputs.size(); ++i) {
+    const Individual& I = out.outputs[i];
+    char name[32];
+    std::snprintf(name, sizeof name, "best_%02zu.vasp", i);
+    const Structure dec = decorate(ctx.geom, I.sigma, cfg.species);
+    write_poscar(dec, cfg.outdir + "/" + name,
+                 "exsqs E_pure=" + num(I.e_pure) + " SG=" + I.sg_symbol);
+    j << "    {\"file\": \"" << name << "\", \"e_pure\": " << num(I.e_pure)
+      << ", \"e_obj\": " << num(I.e_obj) << ", \"D\": " << I.D << ", \"sg\": " << I.sg
+      << ", \"sg_symbol\": \"" << I.sg_symbol << "\"}" << (i + 1 < out.outputs.size() ? "," : "")
+      << "\n";
+    std::printf("  %s: E_pure=%.6e D=%4d E_obj=%.6e SG=%d (%s)\n", name, I.e_pure, I.D, I.e_obj,
+                I.sg, I.sg_symbol.c_str());
+  }
+  j << "  ]\n}\n";
+  if (ctx.e_floor > 0)
+    std::printf("E_floor=%.6e | best E_pure/E_floor = %.2f\n", ctx.e_floor,
+                out.outputs.empty() ? 0.0 : out.outputs.front().e_pure / ctx.e_floor);
+  std::printf("outputs written to %s\n", cfg.outdir.c_str());
 }
 
 }  // namespace exsqs

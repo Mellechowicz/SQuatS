@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(exsqs VERSION 0.5.0 LANGUAGES C CXX)
+project(exsqs VERSION 0.6.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,6 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# dependencies
 include(FetchContent)
 
 set(SPGLIB_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -54,5 +55,6 @@ else()
   target_link_libraries(exsqs_core PRIVATE yaml-cpp)
 endif()
 
+# command-line driver
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
