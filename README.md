@@ -1,6 +1,6 @@
 # exsqs
 
-Extinction-based evolutionary generator of Special Quasirandom
+Extinction-based (survival-of-the-fittest) evolutionary generator of Special Quasirandom
 Structures (SQS): minimizes E_obj = E_pure * D^gamma over supercell
 decorations of a single lattice.
 
