@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
   try {
     const exsqs::RunConfig cfg = exsqs::load_config(path, ovr);
     const exsqs::RunContext ctx = exsqs::RunContext::build(cfg);
-    std::printf("exsqs 0.6.0 | %d sites | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
+    std::printf("exsqs-mini 1.0.0 | %d sites | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
     const exsqs::RunOutput out = exsqs::run_evolution(cfg, ctx);
     exsqs::write_outputs(cfg, ctx, out);
     return out.success ? 0 : 3;
