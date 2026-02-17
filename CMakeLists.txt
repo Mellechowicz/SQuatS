@@ -8,6 +8,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+option(EXSQS_BUILD_TESTS "Build unit tests" ON)
+
 include(FetchContent)
 
 # ---- spglib (BSD-3) ----------------------------------------------------------
@@ -57,3 +59,13 @@ endif()
 
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
+
+if(EXSQS_BUILD_TESTS)
+  enable_testing()
+  FetchContent_Declare(catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.4
+    GIT_SHALLOW TRUE)
+  FetchContent_MakeAvailable(catch2)
+  add_subdirectory(tests)
+endif()
