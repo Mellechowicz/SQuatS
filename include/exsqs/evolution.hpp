@@ -21,6 +21,8 @@ struct RunContext {
   std::vector<double> weights;           // A_n
   double e_floor = 0.0;                  // provable L1 quantization bound
   std::vector<std::vector<int>> perms;   // full site-permutation group [A9]
+  SymmetryInfo empty_info;                   // ops of the empty supercell
+  std::vector<std::vector<int>> seed_perms;  // perms of ops with R != I (non-P1 guarantee)
   static RunContext build(const RunConfig& cfg);
 };
 

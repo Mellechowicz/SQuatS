@@ -15,6 +15,16 @@
 #include "exsqs/rng.hpp"
 
 namespace exsqs {
+namespace {
+
+bool is_identity(const Mat3i& R) {
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      if (R[i][j] != (i == j ? 1 : 0)) return false;
+  return true;
+}
+
+}  // namespace
 
 RunContext RunContext::build(const RunConfig& cfg) {
   RunContext ctx;
@@ -29,6 +39,11 @@ RunContext RunContext::build(const RunConfig& cfg) {
                     ? e_floor_full(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights)
                     : e_floor_diagonal(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights);
   ctx.perms = site_permutations(ctx.geom, cfg.symprec);
+  ctx.empty_info = get_symmetry(ctx.geom, cfg.symprec);
+  std::set<std::vector<int>> sp;
+  for (const auto& op : ctx.empty_info.ops)
+    if (!is_identity(op.R)) sp.insert(permutation_of_op(ctx.geom, op.R, op.t));
+  ctx.seed_perms.assign(sp.begin(), sp.end());
   return ctx;
 }
 
