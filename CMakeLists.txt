@@ -43,6 +43,7 @@ add_library(exsqs_core
   src/symmetry.cpp
   src/displacements.cpp
   src/dedup.cpp
+  src/testcells.cpp
   src/config.cpp
   src/evolution.cpp)
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
