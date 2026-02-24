@@ -53,6 +53,10 @@ struct RunOutput {
 
 double effective_e_tol(const RunConfig& cfg, const RunContext& ctx);
 std::vector<int> composition_sigma(const RunConfig& cfg);
+std::vector<int> seed_sigma_rejection(const RunConfig& cfg, const RunContext& ctx, int island,
+                                      int slot);
+std::vector<int> seed_sigma_constructive(const RunConfig& cfg, const RunContext& ctx, int island,
+                                         int gen, int slot, bool& constructive_ok);
 Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int> sigma);
 RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx);
 void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out);

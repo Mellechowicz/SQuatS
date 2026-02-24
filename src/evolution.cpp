@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <set>
 #include <stdexcept>
 
@@ -22,6 +23,102 @@ bool is_identity(const Mat3i& R) {
     for (int j = 0; j < 3; ++j)
       if (R[i][j] != (i == j ? 1 : 0)) return false;
   return true;
+}
+
+// DP subset-sum with randomized backtrack: choose a subset of `sizes` summing
+// to `target`; when both include/exclude are feasible the branch is a coin
+// flip, giving a randomized (deterministic under CounterRng) solution.
+std::vector<int> subset_pick(const std::vector<int>& sizes, int target, CounterRng& rng,
+                             bool& ok) {
+  ok = false;
+  if (target < 0) return {};
+  const int m = static_cast<int>(sizes.size());
+  std::vector<std::vector<char>> reach(m + 1, std::vector<char>(target + 1, 0));
+  reach[0][0] = 1;
+  for (int j = 1; j <= m; ++j) {
+    const int sj = sizes[j - 1];
+    for (int t = 0; t <= target; ++t)
+      reach[j][t] = reach[j - 1][t] || (t >= sj && reach[j - 1][t - sj]);
+  }
+  if (!reach[m][target]) return {};
+  std::vector<int> chosen;
+  int t = target;
+  for (int j = m; j >= 1; --j) {
+    const int sj = sizes[j - 1];
+    const bool can_exclude = reach[j - 1][t] != 0;
+    const bool can_include = (t >= sj) && reach[j - 1][t - sj] != 0;
+    const bool take = can_include && (!can_exclude || ((rng() & 1ULL) != 0));
+    if (take) {
+      chosen.push_back(j - 1);
+      t -= sj;
+    }
+  }
+  ok = true;
+  return chosen;
+}
+
+// Constructive decoration [D4]: pick an op with R != I from the pool, use the
+// cycles of its site permutation as orbits, and subset-sum whole orbits to the
+// exact composition. The decoration is invariant under that op, so the child
+// carries a point-group element beyond identity => guaranteed non-P1.
+std::vector<int> constructive_from_rng(const RunConfig& cfg, const RunContext& ctx,
+                                       CounterRng& rng, bool& ok) {
+  ok = false;
+  const int N = ctx.geom.natoms();
+  if (!ctx.seed_perms.empty()) {
+    const size_t P = ctx.seed_perms.size();
+    const size_t start = rng.below(P);
+    const size_t tries = std::min<size_t>(32, P);
+    for (size_t a = 0; a < tries; ++a) {
+      const auto& perm = ctx.seed_perms[(start + a) % P];
+      std::vector<std::vector<int>> orbs;
+      std::vector<char> seen(N, 0);
+      for (int i = 0; i < N; ++i)
+        if (!seen[i]) {
+          std::vector<int> cyc;
+          int j = i;
+          while (!seen[j]) {
+            seen[j] = 1;
+            cyc.push_back(j);
+            j = perm[j];
+          }
+          orbs.push_back(std::move(cyc));
+        }
+      std::vector<int> sigma(N, 0);
+      std::vector<int> avail(orbs.size());
+      std::iota(avail.begin(), avail.end(), 0);
+      bool good = true;
+      for (int t = static_cast<int>(cfg.counts.size()) - 1; t >= 1 && good; --t) {
+        std::vector<int> sizes;
+        sizes.reserve(avail.size());
+        for (int oi : avail) sizes.push_back(static_cast<int>(orbs[oi].size()));
+        bool okk = false;
+        const auto chosen = subset_pick(sizes, cfg.counts[t], rng, okk);
+        if (!okk) {
+          good = false;
+          break;
+        }
+        std::vector<char> used(avail.size(), 0);
+        for (int ci : chosen) {
+          used[ci] = 1;
+          for (int site : orbs[avail[ci]]) sigma[site] = t;
+        }
+        std::vector<int> navail;
+        navail.reserve(avail.size());
+        for (size_t q = 0; q < avail.size(); ++q)
+          if (!used[q]) navail.push_back(avail[q]);
+        avail.swap(navail);
+      }
+      if (good) {
+        ok = true;
+        return sigma;
+      }
+    }
+  }
+  // no feasible op found: plain shuffle from the same stream (caller filters)
+  auto s = composition_sigma(cfg);
+  rng.shuffle(s.begin(), s.end());
+  return s;
 }
 
 }  // namespace
@@ -56,6 +153,23 @@ std::vector<int> composition_sigma(const RunConfig& cfg) {
   for (size_t t = 0; t < cfg.counts.size(); ++t)
     for (int k = 0; k < cfg.counts[t]; ++k) s.push_back(static_cast<int>(t));
   return s;
+}
+
+std::vector<int> seed_sigma_rejection(const RunConfig& cfg, const RunContext& ctx, int island,
+                                      int slot) {
+  (void)ctx;
+  auto s = composition_sigma(cfg);
+  CounterRng rng(cfg.seed, static_cast<uint64_t>(island), 0, static_cast<uint64_t>(slot),
+                 RngPurpose::SeedInit);
+  rng.shuffle(s.begin(), s.end());
+  return s;
+}
+
+std::vector<int> seed_sigma_constructive(const RunConfig& cfg, const RunContext& ctx, int island,
+                                         int gen, int slot, bool& constructive_ok) {
+  CounterRng rng(cfg.seed, static_cast<uint64_t>(island), static_cast<uint64_t>(gen),
+                 static_cast<uint64_t>(slot), RngPurpose::ConstructiveSeed);
+  return constructive_from_rng(cfg, ctx, rng, constructive_ok);
 }
 
 Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int> sigma) {
