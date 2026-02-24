@@ -61,6 +61,9 @@ endif()
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
 
+add_executable(exsqs_gentests tools/gen_testcells.cpp)
+target_link_libraries(exsqs_gentests PRIVATE exsqs_core)
+
 if(EXSQS_BUILD_TESTS)
   enable_testing()
   FetchContent_Declare(catch2
