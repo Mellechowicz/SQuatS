@@ -1,0 +1,17 @@
+sc_pure_222 8 221 Pm-3m 1
+bcc_pure_222 16 229 Im-3m 1
+fcc_pure_222 32 225 Fm-3m 1
+hcp_pure_221 8 194 P6_3/mmc 1
+b2_111 2 221 Pm-3m 2
+b2_222 16 221 Pm-3m 2
+l10_111 4 123 P4/mmm 2
+l12_111 4 221 Pm-3m 2
+l12_222 32 221 Pm-3m 2
+bcc16_inv_a 16 65 Cmmm 16
+bcc16_inv_b 16 221 Pm-3m 2
+bcc16_c2_a 16 99 P4mm 20
+bcc16_rand_a 16 3 P2 48
+bcc16_rand_b 16 8 Cm 56
+fcc32_rand_a 32 1 P1 192
+sc27_rand_a 27 1 P1 162
+sc27_inv_a 27 12 C2/m 45
