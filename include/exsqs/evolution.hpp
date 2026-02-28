@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "exsqs/config.hpp"
+#include "exsqs/rng.hpp"
 #include "exsqs/structure.hpp"
 #include "exsqs/symmetry.hpp"
 #include "exsqs/zones.hpp"
@@ -29,11 +30,18 @@ struct RunContext {
 struct Individual {
   std::vector<int> sigma;
   std::vector<uint8_t> canonical;
-  double e_pure = 0.0;
-  double e_obj = 0.0;
-  int D = 0;
+  uint64_t hash = 0;
   int sg = 0;
   std::string sg_symbol;
+  std::vector<int> eq_atoms;
+  std::vector<SymOp> stab_ops;  // nontrivial ops (R != I) of the decorated cell;
+                                // mutation picks one and preserves its cyclic subgroup [D6]
+  double e_pure = 0.0;
+  double e_obj = 0.0;  // E_pure * D^gamma [D3]
+  int D = 0;
+  int birth_gen = 0;
+  int birth_island = 0;
+  char origin = '?';  // r rejection seed | c constructive seed | m mutant | f fallback seed
 };
 
 struct GenStat {
@@ -57,6 +65,8 @@ std::vector<int> seed_sigma_rejection(const RunConfig& cfg, const RunContext& ct
                                       int slot);
 std::vector<int> seed_sigma_constructive(const RunConfig& cfg, const RunContext& ctx, int island,
                                          int gen, int slot, bool& constructive_ok);
+std::vector<int> mutate_sigma(const Individual& parent, const RunConfig& cfg,
+                              const RunContext& ctx, CounterRng& rng);
 Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int> sigma);
 RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx);
 void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out);

@@ -5,9 +5,11 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <numeric>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 
 #include "exsqs/correlation.hpp"
 #include "exsqs/dedup.hpp"
@@ -181,10 +183,114 @@ Individual evaluate(const RunConfig& cfg, const RunContext& ctx, std::vector<int
   const SymmetryInfo info = get_symmetry(dec, cfg.symprec);
   I.sg = info.sg_number;
   I.sg_symbol = info.sg_symbol;
+  I.eq_atoms = info.equivalent_atoms;
+  for (const auto& op : info.ops)
+    if (!is_identity(op.R)) I.stab_ops.push_back(op);
   I.D = displacement_count(dec, info, cfg.symprec);
   I.e_obj = I.e_pure * std::pow(static_cast<double>(I.D), cfg.gamma);
   I.sigma = std::move(sigma);
   return I;
+}
+
+// [D6] symmetry-preserving mutation: swap species assignments between two
+// equal-size orbits (different species) of H = the parent's full stabilizer
+// (spglib equivalent_atoms). Decorations constant on H-orbits stay constant,
+// so the child keeps H by construction. When no such orbit pair exists the
+// plain unlike-pair swap of [A12] is the fallback.
+namespace {
+// deterministic inverse-CDF Poisson draw (small lambda regime)
+int poisson_draw(CounterRng& rng, double lam) {
+  const double u = rng.uniform();
+  double p = std::exp(-lam), F = p;
+  int k = 0;
+  while (u >= F && k < 64) {
+    ++k;
+    p *= lam / k;
+    F += p;
+  }
+  return k;
+}
+}  // namespace
+
+std::vector<int> mutate_sigma(const Individual& parent, const RunConfig& cfg,
+                              const RunContext& ctx, CounterRng& rng) {
+  const int N = ctx.geom.natoms();
+  const int kswaps = (cfg.mut_poisson_lambda >= 0)
+                         ? 1 + poisson_draw(rng, cfg.mut_poisson_lambda)
+                         : cfg.mut_swaps;
+  std::vector<int> s = parent.sigma;
+  // [D6] symmetry-preserving move, revised: choose ONE nontrivial op g of the
+  // parent and swap species between equal-size cycles of <g>. The child keeps
+  // <g> by construction -- so it stays non-P1 and never enters the
+  // mutate->P1->reject loop -- but MAY drop the rest of the parent's group.
+  // (H = full stabilizer proved too rigid: symmetry could never decrease and
+  // the search was trapped in high-symmetry strata; see STEP2_REPORT.)
+  std::vector<std::vector<int>> orbs;
+  if (cfg.mut_sympres && !parent.stab_ops.empty()) {
+    for (int a = 0; a < 4 && orbs.empty(); ++a) {
+      const SymOp& g = parent.stab_ops[rng.below(parent.stab_ops.size())];
+      const auto perm = permutation_of_op(ctx.geom, g.R, g.t);
+      std::vector<char> seen(N, 0);
+      std::vector<std::vector<int>> cyc;
+      for (int i = 0; i < N; ++i) {
+        if (seen[i]) continue;
+        std::vector<int> c;
+        int j = i;
+        while (!seen[j]) {
+          seen[j] = 1;
+          c.push_back(j);
+          j = perm[j];
+        }
+        cyc.push_back(std::move(c));
+      }
+      std::map<int, std::map<int, int>> probe;  // cycle size -> species -> count
+      for (const auto& c : cyc) probe[static_cast<int>(c.size())][s[c[0]]]++;
+      for (const auto& kv : probe)
+        if (kv.second.size() >= 2) {  // an equal-size unlike-species pair exists
+          orbs = std::move(cyc);
+          break;
+        }
+    }
+  }
+  for (int k = 0; k < kswaps; ++k) {
+    bool done = false;
+    if (!orbs.empty()) {
+      // size -> species -> cycle ids (std::map keeps the ordering deterministic)
+      std::map<int, std::map<int, std::vector<int>>> by;
+      for (size_t oi = 0; oi < orbs.size(); ++oi)
+        by[static_cast<int>(orbs[oi].size())][s[orbs[oi][0]]].push_back(static_cast<int>(oi));
+      std::vector<std::tuple<int, int, int>> cand;  // (size, species a, species b)
+      for (const auto& sz_sp : by)
+        if (sz_sp.second.size() >= 2) {
+          std::vector<int> ts;
+          for (const auto& t_ids : sz_sp.second) ts.push_back(t_ids.first);
+          for (size_t i = 0; i < ts.size(); ++i)
+            for (size_t j = i + 1; j < ts.size(); ++j)
+              cand.emplace_back(sz_sp.first, ts[i], ts[j]);
+        }
+      if (!cand.empty()) {
+        const auto pick = cand[rng.below(cand.size())];
+        const int sz = std::get<0>(pick), ta = std::get<1>(pick), tb = std::get<2>(pick);
+        const auto& la = by[sz][ta];
+        const auto& lb = by[sz][tb];
+        const int ia = la[rng.below(la.size())];
+        const int ib = lb[rng.below(lb.size())];
+        for (int i : orbs[static_cast<size_t>(ia)]) s[i] = tb;
+        for (int i : orbs[static_cast<size_t>(ib)]) s[i] = ta;
+        done = true;
+      }
+    }
+    if (!done) {
+      const int i = static_cast<int>(rng.below(static_cast<uint64_t>(N)));
+      std::vector<int> others;
+      for (int j = 0; j < N; ++j)
+        if (s[j] != s[i]) others.push_back(j);
+      if (others.empty()) break;  // degenerate single-species case
+      const int j = others[rng.below(others.size())];
+      std::swap(s[i], s[j]);
+    }
+  }
+  return s;
 }
 
 namespace {
@@ -215,6 +321,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
     out.evals++;
     I = evaluate(cfg, ctx, std::move(sigma));
     I.canonical = std::move(labels);
+    I.hash = hash_labels(I.canonical);
     consider_output(out.outputs, I, cfg.outputs);
     return true;
   };
@@ -277,18 +384,8 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx) {
       CounterRng pick(cfg.seed, 0, static_cast<uint64_t>(g), slot, RngPurpose::ParentPick);
       const Individual& parent =
           pop[static_cast<size_t>(pick.uniform() * static_cast<double>(pop.size())) % pop.size()];
-      std::vector<int> child = parent.sigma;
       CounterRng mut(cfg.seed, 0, static_cast<uint64_t>(g), slot, RngPurpose::Mutation);
-      for (int sw = 0; sw < std::max(1, cfg.mut_swaps); ++sw) {
-        for (int attempt = 0; attempt < 64; ++attempt) {
-          const size_t i = static_cast<size_t>(mut.uniform() * child.size()) % child.size();
-          const size_t j = static_cast<size_t>(mut.uniform() * child.size()) % child.size();
-          if (child[i] != child[j]) {
-            std::swap(child[i], child[j]);
-            break;
-          }
-        }
-      }
+      std::vector<int> child = mutate_sigma(parent, cfg, ctx, mut);
       ++slot;
       Individual I;
       if (admit(std::move(child), I)) {
