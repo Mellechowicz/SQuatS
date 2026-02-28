@@ -1,0 +1,17 @@
+sc_pure_222 1
+bcc_pure_222 1
+fcc_pure_222 1
+hcp_pure_221 1
+b2_111 2
+b2_222 2
+l10_111 2
+l12_111 2
+l12_222 2
+bcc16_inv_a 16
+bcc16_inv_b 2
+bcc16_c2_a 20
+bcc16_rand_a 48
+bcc16_rand_b 56
+fcc32_rand_a 192
+sc27_rand_a 162
+sc27_inv_a 45
