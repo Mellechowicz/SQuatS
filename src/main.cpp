@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     const exsqs::RunContext ctx = exsqs::RunContext::build(cfg);
     std::printf("exsqs-mini 1.0.0 | %d sites | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
     const exsqs::RunOutput out = exsqs::run_evolution(cfg, ctx);
-    exsqs::write_outputs(cfg, ctx, out);
+    exsqs::write_outputs(cfg, ctx, out, false);
     return out.success ? 0 : 3;
   } catch (const std::exception& e) {
     std::fprintf(stderr, "exsqs error: %s\n", e.what());
