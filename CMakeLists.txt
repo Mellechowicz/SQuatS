@@ -47,6 +47,7 @@ add_library(exsqs_core
   src/config.cpp
   src/evolution.cpp)
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(exsqs_core PRIVATE -Wall -Wextra)
 if(TARGET Spglib::symspg)
   target_link_libraries(exsqs_core PUBLIC Spglib::symspg)
 else()
@@ -60,6 +61,7 @@ endif()
 
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
+target_compile_options(exsqs PRIVATE -Wall -Wextra)
 
 add_executable(exsqs_gentests tools/gen_testcells.cpp)
 target_link_libraries(exsqs_gentests PRIVATE exsqs_core)
