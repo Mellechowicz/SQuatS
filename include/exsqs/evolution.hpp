@@ -96,5 +96,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
 RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&& rs);
 void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out,
                    bool checkpoint);
+// Full serial driver (banner, run, outputs). Exit code: 0 success, 3 budget.
+int run_from_config(const RunConfig& cfg);
 
 }  // namespace exsqs

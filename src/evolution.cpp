@@ -767,4 +767,60 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "}\n";
 }
 
+int run_from_config(const RunConfig& cfg) {
+  std::printf("exsqs 1.1.0 | spglib %s\n", spglib_version().c_str());
+  const RunContext ctx = RunContext::build(cfg);
+  const int N = ctx.geom.natoms();
+  std::printf("system: %d sites |", N);
+  for (size_t t = 0; t < cfg.species.size(); ++t)
+    std::printf(" %s=%d (x=%.6f)", cfg.species[t].c_str(), cfg.counts[t], cfg.x_achieved[t]);
+  std::printf("\nzones: %d shells, radii(A):", ctx.zones.n_shells);
+  for (double r : ctx.zones.radii) std::printf(" %.4f", r);
+  std::printf("%s\n", ctx.zones.shells_exceed_half_width
+                          ? "  [WARNING: outer shells exceed half cell width, A3]"
+                          : "");
+  std::printf("dedup group |Pi| = %zu perms; constructive pool = %zu ops (R != I)\n",
+              ctx.perms.size(), ctx.seed_perms.size());
+  std::printf("mode=%s gamma=%.3g survival=%s seeding=%s sympres=%s e_tol=%.3g pop=%d islands=%d\n",
+              cfg.full_pairs ? "full_pairs" : "diagonal", cfg.gamma,
+              cfg.metropolis ? "metropolis" : "ratio",
+              cfg.seed_mode == 0 ? "rejection" : (cfg.seed_mode == 1 ? "constructive" : "mixed"),
+              cfg.mut_sympres ? "on" : "off", effective_e_tol(cfg, ctx), cfg.population, cfg.islands);
+  std::printf("E_floor = %.6e (L1 quantization bound, SPEC 4.1)%s\n", ctx.e_floor,
+              cfg.e_tol < 0 ? "  [e_tol auto -> 3.0 x E_floor]" : "");
+  if (effective_e_tol(cfg, ctx) < ctx.e_floor)
+    std::fprintf(stderr,
+                 "exsqs warning: e_tol=%.3g is below E_floor=%.3g (infeasible); "
+                 "the run will terminate on generation/wall caps only\n",
+                 effective_e_tol(cfg, ctx), ctx.e_floor);
+  std::printf("reference: D(P1, %d sites) = %d\n", N, 6 * N);
+
+  const CheckpointFn cb = [&cfg, &ctx](int island, int gen, const std::vector<Individual>& pool) {
+    RunOutput partial;
+    partial.islands = cfg.islands;
+    partial.outputs = pool;
+    partial.island_generations = {gen};
+    partial.island_stop = {"checkpoint@island" + std::to_string(island)};
+    write_outputs(cfg, ctx, partial, true);
+  };
+
+  RunOutput out = run_evolution(cfg, ctx, cb);
+  write_outputs(cfg, ctx, out, false);
+
+  std::printf("\n== %s | evals=%lld | wall=%.1fs ==\n",
+              out.success ? "SUCCESS (min E_pure <= e_tol)"
+                          : "budget exhausted (best-effort output) [A13]",
+              out.evals, out.wall_s);
+  for (size_t i = 0; i < out.outputs.size(); ++i) {
+    const auto& I = out.outputs[i];
+    std::printf("  best_%02zu: E_pure=%.6e D=%4d (P1:%d) E_obj=%.6e SG=%d (%s)\n", i, I.e_pure,
+                I.D, 6 * N, I.e_obj, I.sg, I.sg_symbol.c_str());
+  }
+  if (!out.outputs.empty() && ctx.e_floor > 0)
+    std::printf("E_floor=%.6e | best E_pure/E_floor = %.2f\n", ctx.e_floor,
+                out.outputs[0].e_pure / ctx.e_floor);
+  std::printf("outputs written to %s\n", cfg.outdir.c_str());
+  return out.success ? 0 : 3;
+}
+
 }  // namespace exsqs
