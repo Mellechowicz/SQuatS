@@ -8,6 +8,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+option(EXSQS_BUILD_TESTS "Build unit tests" ON)
+
 include(FetchContent)
 
 # ---- spglib (BSD-3) ----------------------------------------------------------
@@ -41,9 +43,11 @@ add_library(exsqs_core
   src/symmetry.cpp
   src/displacements.cpp
   src/dedup.cpp
+  src/testcells.cpp
   src/config.cpp
   src/evolution.cpp)
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(exsqs_core PRIVATE -Wall -Wextra)
 if(TARGET Spglib::symspg)
   target_link_libraries(exsqs_core PUBLIC Spglib::symspg)
 else()
@@ -57,3 +61,17 @@ endif()
 
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
+target_compile_options(exsqs PRIVATE -Wall -Wextra)
+
+add_executable(exsqs_gentests tools/gen_testcells.cpp)
+target_link_libraries(exsqs_gentests PRIVATE exsqs_core)
+
+if(EXSQS_BUILD_TESTS)
+  enable_testing()
+  FetchContent_Declare(catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.4
+    GIT_SHALLOW TRUE)
+  FetchContent_MakeAvailable(catch2)
+  add_subdirectory(tests)
+endif()
