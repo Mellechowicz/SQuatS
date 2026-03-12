@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <exception>
 #include <string>
 #include <vector>
 
@@ -7,10 +6,12 @@
 #include "exsqs/evolution.hpp"
 
 static void usage() {
-  std::fprintf(stderr,
-               "exsqs-mini: extinction-based evolutionary SQS generator\n"
-               "usage: exsqs <config.yaml> [--set key=value ...] [--out DIR]\n"
-               "exit codes: 0 converged to e_tol, 3 budget exhausted, 1 error\n");
+  std::printf(
+      "usage: exsqs <config.yaml> [--set key.path=value ...] [--out DIR]\n"
+      "  Extinction-based evolutionary SQS search (arXiv:2602.10872 workflow; SPEC v1.0).\n"
+      "  --set   override any config key, e.g. --set evolution.population=64\n"
+      "  --out    shorthand for --set output.dir=DIR\n"
+      "exit codes: 0 success (min E_pure <= e_tol) | 3 budget exhausted | 1 error\n");
 }
 
 int main(int argc, char** argv) {
@@ -18,6 +19,10 @@ int main(int argc, char** argv) {
   std::vector<std::string> ovr;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
+    if (a == "-h" || a == "--help") {
+      usage();
+      return 0;
+    }
     if (a == "--set") {
       if (i + 1 >= argc) {
         usage();
@@ -43,11 +48,7 @@ int main(int argc, char** argv) {
   }
   try {
     const exsqs::RunConfig cfg = exsqs::load_config(path, ovr);
-    const exsqs::RunContext ctx = exsqs::RunContext::build(cfg);
-    std::printf("exsqs-mini 1.0.0 | %d sites | E_floor=%.6e\n", ctx.geom.natoms(), ctx.e_floor);
-    const exsqs::RunOutput out = exsqs::run_evolution(cfg, ctx);
-    exsqs::write_outputs(cfg, ctx, out);
-    return out.success ? 0 : 3;
+    return exsqs::run_from_config(cfg);
   } catch (const std::exception& e) {
     std::fprintf(stderr, "exsqs error: %s\n", e.what());
     return 1;

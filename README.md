@@ -16,4 +16,14 @@ Testing: `./build/tests/exsqs_tests` runs the Catch2 suites (geometry, correlati
 symmetry/dedup, the T-D1 phonopy displacement gate, RNG, config); cross-validate any
 run directory independently with `python3 tools/py/validate.py <dir>` (T-V1).
 
+## v1.1 notes
+
+`e_tol: auto` (default) resolves to 3.0 x E_floor, the provable L1 quantization lower bound
+(SPEC 4.1) that the engine logs at startup; the paper's absolute error scale lies below this
+bound for its own reference system, so compare on raw structures (tools/py/validate.py), never
+on reported scalars. Serial exploitation recipe (seed-reproducible):
+`--set parallel.islands=4 --set evolution.survival.mode=metropolis --set evolution.survival.beta=3000`.
+New in v1.1: constructive space-group seeding [D4] behind the P1 rejection filter,
+cyclic-subgroup [D6] moves, mutation `swaps: poisson` (+ `lambda`), `stagnation_stop`.
+
 License: MIT (see LICENSE).

@@ -1,0 +1,307 @@
+# EXSQS — Specification v1.1 (2026-03-10) — v1.0 frozen 2026-02-16; changes tracked in §16
+
+Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
+Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
+
+Reference algorithm: A. P. Kądzielawa, *On generating Special Quasirandom Structures: Optimization
+for the DFT computational efficiency*, arXiv:2602.10872 (2026). Alg. 1 (extinction workflow),
+Alg. 2 (error function).
+
+Tags used below:
+- **[A#]** — adopted convention (binding for v1)
+- **[D#]** — documented deviation from / disambiguation of the paper's pseudocode
+
+---
+
+## 1. Scope of v1
+
+In scope:
+- Single active sublattice: prototypes whose decorated sites form one Wyckoff orbit
+  (sc, bcc, fcc, hcp built-in; arbitrary POSCAR/CIF prototype accepted if its sites are one orbit).
+- **K-component data model from day one; v1 *validated* scope is binary (K = 2).** K-ary code
+  paths are compiled and unit-tested but flagged `experimental` at runtime until the K-ary
+  validation pass (v1.1). *(Q3 resolution.)*
+- Fixed supercell per run: diagonal `n1×n2×n3` or full 3×3 integer matrix H (shape *scan* = outer
+  loop over configs, embarrassingly parallel; shape *optimization* is out of scope).
+- Pair correlations by coordination zone (paper-faithful). Triplets/CE clusters: out of scope v1.
+- Objective = correlation error × displacement-count penalty; pure-SQS mode via `gamma: 0`.
+
+Out of scope v1: multi-sublattice decoration, GPU, on-the-fly cell-shape search, cluster orders > 2,
+relaxed/strained geometries (ideal lattice positions only).
+
+## 2. Notation and data model
+
+- Prototype lattice cell `A0` (3×3, columns = vectors), basis sites; supercell `A = A0·H`,
+  `N = m·n_basis` sites at ideal fractional coordinates `f_i` (exact rationals by construction).
+- Species set `T = {t_1..t_K}`; decoration `σ: {1..N} → T`; counts `N_t`, achieved concentrations
+  `x̃_t = N_t/N` (§9).
+- Background `B`: the 27 periodic copies of the supercell, offsets `(i,j,k) ∈ {−1,0,1}³` (Alg. 2:2–7).
+  Ordered pairs `(i ∈ S, j ∈ B)` with `d_ij > 0` — i.e., the zero-distance self pair is excluded,
+  but nonzero self-images **are** legitimate PBC neighbors and are included. **[A1]**
+- `D(σ)`: number of irreducible finite-displacement calculations for the phonon run (§6).
+
+## 3. Geometry: coordination zones
+
+- Zones are a property of the **undecorated** geometry: sorted pair distances of `(S,B)` merged into
+  shells with tolerance `ε_shell` (relative, default `1e-3`); shell n has radius `R_n` and per-site
+  count `Z_n` (constant across sites because active sites are one orbit — v1 scope guard). **[A2]**
+- Pair→zone lookup precomputed **once per (lattice, H, n_shells)** and shared by all evaluations;
+  stored as per-site neighbor lists up to shell `n_max` (not the full 27N² table).
+- `n_max` default 7. If `R_{n_max}` exceeds half the minimal supercell width, emit a warning
+  (correlations there are constrained by self-images — allowed, but user should know). **[A3]**
+- Sanity identities: `Σ_i (neighbors of i in shell n) = N·Z_n`; bcc coordination sequence
+  8, 6, 12, 24, 8; fcc 12, 6, 24, 12, 24 (used in tests, §12).
+
+## 4. Correlation and error function
+
+Counters over ordered pairs within shells `n = 1..n_max`, for center type `t`, neighbor type `t'`:
+
+```
+C_{t,t'}(n) = #{ (i,j) : σ_i = t, σ_j = t', zone(i,j) = n }
+P_t(n)      = Σ_{t'} C_{t,t'}(n)                     # pairs whose central atom is type t
+Π_{t,t'}(n) = C_{t,t'}(n) / P_t(n)                   # P(neighbor is t' | center is t), Σ_{t'} Π = 1
+```
+
+**[D1]** Alg. 2:19 `population` is read as `P_t(n)` above (pairs whose *central* atom is type t).
+Justification: only then does the random limit give `Π_{t,t}(n) → x_t`, which is what line 20
+compares against. Normalizing by all pairs would give `x_t²` and never converge to `x_t`.
+
+**[D2]** Alg. 2:20 `correlation = x[atomType]` is read as `-=` (subtraction). The error term is the
+absolute deviation from the random limit.
+
+**[A16] Error modes** *(Q2 resolution)* — config `error.mode: auto | diagonal | full_pairs`,
+default `auto` = `diagonal` for K = 2, `full_pairs` for K ≥ 3:
+
+```
+diagonal   (paper-faithful):  E_pure = Σ_n A_n Σ_t     | Π_{t,t}(n)  − x̃_t  |
+full_pairs (K ≥ 3 default):   E_pure = Σ_n A_n Σ_{t,t'} | Π_{t,t'}(n) − x̃_t' |
+E_obj = E_pure · D^γ                                  # γ = 1 default; γ = 0 → pure-SQS mode
+```
+
+- Rationale: for K = 2 the off-diagonal deviations are fully determined by the diagonal ones; for
+  K ≥ 3 diagonal-only under-constrains the SRO matrix.
+- Exact identities (used as tests): `C_{t,t'}(n) = C_{t',t}(n)` (ordered-pair bijection), and for
+  **K = 2: `E_full ≡ 2·E_diag` for every decoration** — mode choice never changes rankings for
+  binaries, only the scale. Consequence: `e_tol` is interpreted in the *active* mode's scale;
+  logs always report both `E_diag` and `E_full` for K = 2.
+- Weights `A_n`: `1/n` default; options `n^{−p}`, `R_n^{−1}`, explicit list (paper tested these;
+  `1/n` converged best for cheap supercells). **[A4]**
+- **[D3]** Exponent γ generalizes Alg. 2:22 (`γ=1` reproduces the paper; `γ=0` gives an
+  ATAT/sqsgenerator-comparable pure error for benchmarking).
+- Interpretation (documentation + validator): `|Π_{t,t}(n) − x̃_t| = x̃_t·|α_tt(n)|` with the diagonal
+  Warren–Cowley parameter `α_tt(n) = 1 − Π_{t,t}(n)/x̃_t`. So E_pure is a weighted sum of
+  concentration-scaled |WC SRO| values.
+- Targets are the **achieved** concentrations `x̃_t`, not the requested ones (§9). **[A5]**
+- Note for tests: a random *canonical* decoration has `E[Π_{t,t}(n)] = (N_t−1)/(N−1)`, not `x̃_t`
+  (hypergeometric, offset `(1−x̃_t)/(N−1)`); the statistical test (§12, T-C3) must expect this.
+
+### 4.1 Quantization floor E_floor (v1.1)
+
+`C` counters are integers while `P_t(n) = N_t·Z_n` is fixed by composition and geometry, so every
+error term is bounded below: `|Π_{t,t'}(n) − x̃_{t'}| ≥ dist(x̃_{t'}·P_t(n), ℤ)/P_t(n)`. Summing the
+independent per-term minima gives a computable lower bound on E_pure:
+
+```
+E_floor = Σ_n A_n Σ_t dist(x̃_t·P_t(n), ℤ) / P_t(n)     # diagonal; full_pairs sums t' too
+                                                        # (K = 2: exactly 2×E_floor_diag)
+```
+
+Reference system W₉₀Cr₃₈ / bcc 4×4×4 / 7 shells / A_n = 1/n: `E_floor = 3.246e-3`. The engine
+computes and logs E_floor at startup and warns when the requested `e_tol` lies below it
+(infeasible; the run then terminates on caps only).
+
+**Scale caveat (v1.1):** the paper's reported absolute errors (Fig. 1: 𝔈 = 2.01–2.92·10⁻⁴ for this
+very system) lie *below* this provable bound, so the paper's reported scalar carries an unstated
+normalization. Absolute 𝔈 values are not comparable across codes; comparisons must recompute the
+error on raw structures (the T-V1 route). v1.0's absolute defaults (`e_tol: 3e-4`, T-E1's `1e-3`),
+inherited from the paper's scale, were infeasible and are replaced by floor-relative values
+(§11, §12).
+
+## 5. Symmetry and filtration
+
+- Backend: spglib on ideal decorated cells (positions exact ⇒ tolerance-robust);
+  `symprec` default `1e-5` Å, logged. **[A6]**
+- Filter policy (Alg. 1:4, 1:21), configurable: default `reject_p1` = reject iff space-group
+  number 1 (P1). Options: `min_sg_index N`, explicit whitelist, `min_pointgroup_order N`. **[A7]**
+- P1-elite quota `q ≥ 0` (paper's "small ≪ P best P1 structures" variant); default `q = 0`. **[A8]**
+- Every emitted structure records: SG number + international symbol, symprec used, point-group order,
+  number of inequivalent sites.
+
+## 6. Displacement count D
+
+- **[A15] Pinned convention** *(Q1 resolution)*: `D(σ)` := the number of displaced supercells
+  phonopy generates for σ used *directly as the phonon supercell* (`supercell_matrix = 1`) with
+  **default settings** (`is_diagonal = True`, `is_plusminus = 'auto'`). Displacement distance is
+  irrelevant to the count. Any alternative convention in the future is a *new* enum value of
+  `displacements.convention`, never a redefinition of `phonopy_default`.
+- Implementation: native C++ from the spglib symmetry dataset — inequivalent atoms
+  (`equivalent_atoms`) → site-symmetry group per representative → minimal direction set per
+  phonopy's reduction, ± doubling when site symmetry cannot reverse the displacement.
+- **Hard validation gate:** exact match against `phonopy` on the full test set (§12, T-D1) before
+  the optimizer is trusted.
+- Reference magnitudes: P1, 128 atoms ⇒ 6·128 = 768 displacements (identity site symmetry, ±, 3 dirs);
+  the paper's C2/Amm2-class cells reach ~5× fewer than P1 ATAT cells.
+
+## 7. Uniqueness and canonical form
+
+- Two decorations are duplicates iff related by a symmetry operation of the **undecorated**
+  supercell (lattice translations of H-cell × point ops of the empty supercell), acting on site
+  indices. **[A9]**
+- Canonical form: precompute the permutation group Π of the undecorated supercell once (from
+  spglib on the empty cell); canonical label = lexicographic minimum of `π(σ)` over `π ∈ Π`;
+  dedup via 128-bit hash of the canonical label, hash set per island + merge at output. Cost is
+  `O(|Π|·N)` per new structure — acceptable at these sizes; a cheap invariant pre-filter
+  (composition + per-shell `C_{t,t'}(n)` vector) short-circuits most comparisons. **[A10]**
+- Rare hash collisions: accepted risk (verify by full compare on collision).
+
+## 8. Evolutionary operators and termination
+
+- **Seeding** (`rejection | constructive | mixed`, default `mixed`): **[D4]**
+  - *rejection* (paper-faithful): uniform random canonical decorations, keep non-P1 & unique.
+  - *constructive*: pick a target space group G from a pool of subgroups of the empty supercell's
+    group; partition sites into G-orbits; assign species to whole orbits so that composition is met
+    (subset-sum over orbit sizes, DP solver); guarantees symmetry ⇒ immune to the
+    rejection-collapse failure mode at large N.
+- **Evaluation**: `E_obj` for every population member (embarrassingly parallel).
+- **Extinction** (Alg. 1:14–17): survival probability `E_min/E_i` (`ratio`, default) or
+  `min(1, exp(−β(E_i − E_min)))` (`metropolis`). β: fixed value or `auto` =
+  `ln 2 / median(E_i − E_min)` recomputed each generation (median structure survives 50%);
+  optional geometric schedule. **[A11]**
+- **[D5]** The current best-by-`E_obj` always survives (`elitism_best = 1`) ⇒ `E_min` monotone.
+  (Paper does not state this; without it the stochastic extinction can lose the optimum.)
+- **Repopulation**: parent = uniform random survivor; mutation = `k` composition-preserving swaps
+  of unlike-species site pairs (`k = 1` default; option `k ~ 1 + Poisson(λ)`); accept offspring iff
+  passes filter + unique; retry budget per slot (default 100), then fall back to constructive
+  seeding for that slot. **[A12]**
+  - Optional `symmetry_preserving: true`: swap species assignments between equal-size orbits of a
+    subgroup H of the parent's group (keeps H by construction; avoids the
+    mutate→P1→reject loop). Recommended default `true`, with plain swaps as fallback. **[D6]**
+- **Termination [D7]:** disambiguation of Alg. 1:9–12 (E "includes displacements", success tests
+  `E_min/D_min`): selection pressure uses `E_obj`; success is declared when
+  `min_i E_pure(σ_i) ≤ E_tol` (the tolerance certifies "is a proper SQS"; D only steers selection).
+  Additional caps: `max_generations`, wall-time budget → checkpoint + best-effort output. **[A13]**
+  v1.1 adds a *stagnation stop*: if repopulation degenerates to all-fallback seeding
+  (`fb ≥ vacancies`) for `stagnation_stop` consecutive generations (default 3), the island
+  stops with reason `stagnation`.
+- **Output set [D8]:** Alg. 1:2's outer loop is realized as: each island evolves a population of
+  size P; the M outputs are the best M *pairwise-inequivalent* structures pooled across
+  islands/restarts, ranked by `E_obj` (report `E_pure`, `D`, SG for each).
+
+## 9. Composition handling
+
+- `N_t = round(x_t·N)` by largest-remainder so `Σ N_t = N`; achieved `x̃_t` logged and used as the
+  correlation target **[A5]**. Hard error if `|x̃_t − x_t| > comp_tol` (default 0.02).
+- Consistency check vs paper: 70:30 on 128 sites → W₉₀Cr₃₈ (x̃ = 0.7031/0.2969) — matches the
+  paper's stated supercell.
+- Constructive seeding feasibility: composition must be a subset-sum of orbit sizes for the chosen
+  G; infeasible G are skipped (logged).
+
+## 10. RNG and reproducibility
+
+- Counter-based generator (Philox/PCG) keyed by `(master_seed, island, generation, slot, purpose)`
+  ⇒ trajectories are independent of thread count and scheduling; bit-identical reruns from the same
+  config+seed. **[A14]**
+- `summary.json` records: config echo, achieved composition, seeds, git commit, spglib/phonopy
+  versions, timings.
+
+## 11. Config schema (v1.0; YAML, CLI-overridable)
+
+```yaml
+lattice:    {type: bcc, a: 3.165, file: null}          # sc|bcc|fcc|hcp|file (POSCAR/CIF prototype)
+supercell:  {diag: [4, 4, 4]}                          # or matrix: [[...],[...],[...]]
+composition: {W: 0.70, Cr: 0.30}                       # largest-remainder rounding; achieved x logged
+zones:      {n_shells: 7, shell_tol: 1.0e-3}
+error:
+  weights:  {form: inv_n}                              # inv_n | inv_n_pow: p | inv_R | custom: [...]
+  mode:     auto                                       # auto = diagonal (K=2) | full_pairs (K>=3) [A16]
+  gamma:    1.0                                        # E_obj = E_pure * D^gamma ; 0 = pure-SQS mode
+evolution:
+  population: 200
+  outputs: 10                                          # M
+  e_tol: auto                                          # v1.1: auto = 3.0×E_floor (§4.1); numeric override; warn if < E_floor                                        # interpreted in the ACTIVE error mode's scale
+  max_generations: 5000
+  stagnation_stop: 3                                   # v1.1 (§8 [A13]); 0 disables
+  survival: {mode: ratio}                              # ratio | metropolis: {beta: auto, schedule: const}
+  elitism_best: 1
+  p1_elite_quota: 0
+  mutation: {swaps: 1, symmetry_preserving: true, retry_budget: 100}
+  # v1.1: swaps also accepts 'poisson' (+ lambda): k ~ 1+Poisson(λ) [A12]
+  seeding:  {mode: mixed, sg_pool: auto}
+symmetry:   {symprec: 1.0e-5, filter: {policy: reject_p1}}
+displacements: {convention: phonopy_default}           # pinned [A15]
+parallel:   {islands: 1, omp_threads: auto, migration_every: 50, migrants: 2}
+rng:        {seed: 42}
+output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: info}
+```
+
+## 12. Test matrix
+
+| ID | Level | Content | Acceptance |
+|----|-------|---------|-----------|
+| T-G1 | unit | Shell radii + coordination sequences, sc/bcc/fcc (bcc: 8,6,12,24,8; fcc: 12,6,24,12,24) | exact |
+| T-G2 | unit | Pair table: `zone(i,j)=zone(j,i)`, `C_{t,t'}=C_{t',t}`, self excluded, `Σ_i n_i(n)=N·Z_n` | exact |
+| T-C1 | unit | B2 (CsCl) decoration: `Π_{t,t}(1)=0`, `Π_{t,t}(2)=1`; hand-computed E_pure | exact |
+| T-C2 | unit | L1₀ and L1₂ on fcc: analytic Π per shell | exact |
+| T-C3 | statistical | 10⁴ random canonical decorations: mean `Π_{t,t}(n) = (N_t−1)/(N−1)` | within 3σ |
+| T-C4 | unit | K=2 mode identity: `E_full = 2·E_diag` on random decorations | ≤ 1e-15 rel |
+| T-S1 | unit | SG detection: B2→221, L1₀→123, L1₂→221, pure bcc supercell→229; wrapper vs pymatgen | exact |
+| T-S2 | unit | Dedup: translated/rotated copies collide; 10⁴ random distinct pairs don't (fuzz) | exact / no false-pos |
+| T-D1 | unit (gate) | D-count vs `phonopy` on ≥12 cells: pure, B2, L1₀, L1₂, and low-symmetry SQS incl. C2/Amm2-class | exact match |
+| T-E1 | integration | W₇₀Cr₃₀ bcc 4×4×4 (binary), `gamma=0`: reaches `E_pure ≤ e_tol(auto) = 3.0×E_floor` (§4.1) and ≥ M unique non-P1 outputs within budget | pass |
+| T-E2 | integration | same, `gamma=1`: best output has `D ≤ D(P1 reference)/3` at `E_pure ≤ 3×e_tol(auto)` (v1.1 reading of “within ~3× of T-E1 best”) | pass |
+| T-R1 | reproducibility | same seed/config, 1 vs 16 threads, 1 vs 4 islands re-run: identical trajectories/outputs | bit-exact |
+| T-V1 | cross-validation | `validate.py` (pymatgen/numpy) recomputes E_pure of every emitted structure | ≤ 1e-10 abs diff |
+| T-B1 | benchmark | evaluations/s vs N (54…1024 sites); OMP scaling on one node; island scaling 1→32 ranks | recorded, no gate |
+
+K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
+until then K ≥ 3 runs print an `experimental` banner.
+
+## 13. Deviations from the paper (summary)
+
+D1 normalizer = pairs with central atom of type t; D2 line 20 is `-=`; D3 γ-exponent
+generalization of the ×D penalty; D4 constructive (subgroup-orbit) seeding added alongside
+rejection; D5 best-structure elitism added; D6 symmetry-preserving mutation added; D7 termination
+= `min E_pure ≤ E_tol` with selection on `E_obj`, plus generation/wall-time caps; D8 outer loop
+realized as island pooling of M unique outputs.
+
+Each deviation is either paper-faithful under a config switch or strictly additive; defaults are
+chosen to reproduce the paper's setup where the pseudocode is unambiguous.
+
+## 14. Resolved decisions (Step-0 sign-off, 2026-02-16)
+
+| # | Question | Resolution |
+|---|----------|-----------|
+| Q1 | D-count convention | **phonopy defaults** (`is_plusminus='auto'`, `is_diagonal=True`, supercell used as-is) → **[A15]** |
+| Q2 | K-ary error mode default | **auto: diagonal for K=2, full_pairs for K≥3** → **[A16]** |
+| Q3 | v1 validated scope | **Binary first, K-ary later** → §1, §12 |
+
+Non-blocking assumptions accepted (no veto received): symprec 1e-5 [A6]; filter = reject SG #1
+only [A7]; targets = achieved concentrations [A5]; mixed seeding default [D4]; license
+Apache-2.0; toolchain GCC ≥ 12 + OpenMPI; spglib vendored via CMake FetchContent (BSD).
+
+## 15. Status and handoff to Step 1
+
+Step-0 exit criteria **met** (Q1–Q3 answered; A/D items accepted). This document is the binding
+reference; changes from here require a version bump and a changelog entry.
+
+Steps 0–1 are realized by the released 1.0.0 core library and its suites (`v1.0.0` tag,
+`feat/tests-core`): the CMake ≥ 3.20 + FetchContent skeleton, T-G1/T-G2, T-C1–T-C4, T-S1/T-S2
+and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `correlation` → `symmetry`
+→ `displacements` → `dedup`. Step 2 (the full §8 engine) proceeds tests-first from there.
+
+## 16. Changelog
+
+- **v1.1 (2026-03-10)** — step-2 integration findings:
+  - §4.1: quantization floor `E_floor` defined, computed and logged; **the paper's absolute error
+    scale is not reproducible from Alg. 2** (reported 2.92e-4 < floor 3.246e-3 for its own
+    reference system) — cross-code comparisons go via raw structures only (T-V1).
+  - §11: `e_tol: auto` (= 3.0×E_floor) is the new default; numeric values below E_floor trigger an
+    infeasibility warning. §12 T-E1/T-E2 acceptance re-pinned floor-relative.
+  - [A12]: Poisson swap-count option implemented (`swaps: poisson`, `lambda`; k ~ 1+Poisson(λ)).
+  - [A13]: stagnation early-stop (all-fallback repopulation × `stagnation_stop` generations).
+  - [D6] refined: H = cyclic ⟨g⟩ of one randomly chosen nontrivial parent op per move, replacing
+    the full-stabilizer variant, which ratchets symmetry monotonically upward and traps the search
+    in high-symmetry strata (empirical stall at ~5× floor; see STEP2_REPORT).
+  - Empirical serial reference (seed 42): 4 islands × metropolis β=3000 reach 2.50×E_floor
+    (E_pure = 8.11e-3, SG 8/Cm) on W₉₀Cr₃₈; the productive island crossed the gate at gen 10.
+- **v1.0 (2026-02-16)** — frozen after step-0 sign-off (§14).

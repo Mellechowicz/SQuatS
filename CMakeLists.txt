@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(exsqs VERSION 1.0.0 LANGUAGES C CXX)
+project(exsqs VERSION 1.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -62,6 +62,10 @@ endif()
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
 target_compile_options(exsqs PRIVATE -Wall -Wextra)
+
+add_executable(exsqs_bench tools/bench.cpp)
+target_link_libraries(exsqs_bench PRIVATE exsqs_core)
+target_compile_options(exsqs_bench PRIVATE -Wall -Wextra)
 
 add_executable(exsqs_gentests tools/gen_testcells.cpp)
 target_link_libraries(exsqs_gentests PRIVATE exsqs_core)
