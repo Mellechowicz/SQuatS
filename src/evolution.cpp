@@ -6,8 +6,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <memory>
+#include <map>
 #include <numeric>
 #include <set>
 #include <stdexcept>
@@ -320,310 +320,396 @@ std::vector<int> mutate_sigma(const Individual& parent, const RunConfig& cfg,
 }
 
 // ---------------------------------------------------------------------------
-// Sequential island engine (v1.1). One island's complete evolutionary state
-// lives in local variables; because the counter-keyed RNG [A14] carries no
-// state, (population, archive, pool, generation, stall counter) fully
-// determine the trajectory -- islands are independent and rerun bit-exactly.
+// IslandEngine (v1.2): resumable per-island state machine. The counter-keyed
+// RNG [A14] carries no state, so (cfg, island, gen, population, archive, pool,
+// stall counter) fully determine the trajectory -- enabling lockstep
+// scheduling, synchronous migration, OpenMP execution and, later,
+// checkpoint/restart. seed_generation0()/advance() are the v1.1 sequential
+// algorithm transposed verbatim; a direct evolve_island() call is bit-exact
+// with v1.1.
 // ---------------------------------------------------------------------------
+namespace {
 
-IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
-                           const CheckpointFn& cb) {
-  const auto t0 = Clock::now();
-  const double etol = effective_e_tol(cfg, ctx);
-  std::unordered_set<std::string> archive;  // [A9][A10] canonical labels ever seen
-  std::vector<Individual> pop;
-  pop.reserve(static_cast<size_t>(cfg.population));
-  IslandResult res;
-  int gen = 0;
-  int stall_gens = 0;
+class IslandEngine {
+ public:
+  IslandEngine(const RunConfig& cfg, const RunContext& ctx, int island, Clock::time_point t0,
+               CheckpointFn cb)
+      : cfg_(cfg), ctx_(ctx), island_(island), t0_(t0), cb_(std::move(cb)) {
+    pop_.reserve(static_cast<size_t>(cfg.population));
+    etol_ = effective_e_tol(cfg, ctx);
+  }
 
-  // ---- filtration + evaluation pipeline [A7][A8][A10] ----
-  const auto fill_canonical = [&](Individual& out) {
-    out.canonical = canonical_labels(out.sigma, ctx.perms);
-    out.hash = hash_labels(out.canonical);
-  };
-  // provisional archive insert: canonicals are archived whether the candidate
-  // is ultimately admitted or P1-rejected (both count as explored)
-  const auto dup_or_insert = [&](const Individual& out, Tally& tl) {
-    const std::string k = key_of(out.canonical);
-    if (archive.count(k)) {
-      ++tl.dup;
-      return false;
-    }
-    archive.insert(k);
-    return true;
-  };
-  const auto evaluate_individual = [&](Individual& out) {
-    const Structure s = decorate(ctx.geom, out.sigma, cfg.species);
-    const SymmetryInfo info = get_symmetry(s, cfg.symprec);
-    out.sg = info.sg_number;
-    out.sg_symbol = info.sg_symbol;
-    out.eq_atoms = info.equivalent_atoms;
-    out.stab_ops.clear();
-    for (const auto& op : info.ops)
-      if (!is_identity(op.R)) out.stab_ops.push_back(op);
-    out.D = displacement_count(s, info, cfg.symprec);
-    const CorrData cd = count_pairs(s, ctx.zones);
-    out.e_pure = cfg.full_pairs ? e_pure_full(cd, cfg.x_achieved, ctx.weights)
-                                : e_pure_diagonal(cd, cfg.x_achieved, ctx.weights);
-    out.e_obj = out.e_pure * std::pow(static_cast<double>(out.D), cfg.gamma);
-  };
-  const auto p1_in_pop = [&]() {
-    int c = 0;
-    for (const auto& I : pop)
-      if (I.sg == 1) ++c;
-    return c;
-  };
-  const auto commit_p1 = [&](const Individual& out, Tally& tl, int p1_children) {
-    ++tl.ev;
-    if (out.sg == 1 && p1_in_pop() + p1_children >= cfg.p1_elite_quota) {
-      ++tl.p1;  // canonical stays archived from dup_or_insert time
-      return false;
-    }
-    return true;
-  };
-  const auto pool_insert = [&](const Individual& I) {
-    res.pool.push_back(I);
-    std::sort(res.pool.begin(), res.pool.end(), [](const Individual& a, const Individual& b) {
-      return std::tie(a.e_obj, a.e_pure, a.hash) < std::tie(b.e_obj, b.e_pure, b.hash);
-    });
-    if (static_cast<int>(res.pool.size()) > cfg.outputs)
-      res.pool.resize(static_cast<size_t>(cfg.outputs));
-  };
-  const auto record = [&](int g, int killed, const Tally& tl, int fb) {
-    GenStats st;
-    st.island = island;
-    st.gen = g;
-    double bp = 1e300;
-    size_t bi = 0;
-    for (size_t i = 0; i < pop.size(); ++i) {
-      bp = std::min(bp, pop[i].e_pure);
-      if (std::tie(pop[i].e_obj, pop[i].e_pure, pop[i].hash) <
-          std::tie(pop[bi].e_obj, pop[bi].e_pure, pop[bi].hash))
-        bi = i;
-    }
-    st.best_e_pure = bp;
-    st.best_e_obj = pop[bi].e_obj;
-    st.best_D = pop[bi].D;
-    st.best_sg = pop[bi].sg;
-    std::vector<double> eo;
-    eo.reserve(pop.size());
-    for (const auto& I : pop) eo.push_back(I.e_obj);
-    st.median_e_obj = median_of(std::move(eo));
-    st.killed = killed;
-    st.evals = tl.ev;
-    st.dup_rejected = tl.dup;
-    st.p1_rejected = tl.p1;
-    st.fallback_seeds = fb;
-    st.elapsed_s = seconds_since(t0);
-    res.log.push_back(st);
-    res.evals += tl.ev;
-    if (cfg.log_info)
-      std::printf(
-          "[isl %d gen %4d] E_pure*=%.6e E_obj*=%.6e D*=%4d SG*=%3d med=%.3e kill=%3d ev=%3d "
-          "dup=%d p1=%d fb=%d t=%.1fs\n",
-          island, g, st.best_e_pure, st.best_e_obj, st.best_D, st.best_sg, st.median_e_obj,
-          st.killed, st.evals, st.dup_rejected, st.p1_rejected, st.fallback_seeds, st.elapsed_s);
-  };
-  const auto finish = [&](const char* why) {
-    res.stop_reason = why;
-    res.generations = gen;
-  };
+  int generation() const { return gen_; }
+  int island() const { return island_; }
+  bool done() const { return done_; }
+  IslandResult&& take_result() { return std::move(res_); }
 
   // ---- generation 0: mixed seeding [D4] (odd slots constructive) ----
-  {
+  // v1.2 round-based execution, bit-equivalent to the v1.1 sequential loop:
+  // per round exactly `remaining` slots are consumed; candidate generation and
+  // canonicalization run in parallel (pure per-slot functions of the counter
+  // RNG [A14]), dup-check + provisional insert and the quota commit run
+  // serially in slot order.
+  void seed_generation0() {
     Tally tl;
     long long attempts = 0;
     const long long cap =
-        static_cast<long long>(cfg.population) * std::max(100, cfg.retry_budget);
+        static_cast<long long>(cfg_.population) * std::max(100, cfg_.retry_budget);
     int slot = 0;
-    int p1_children = 0;
-    while (static_cast<int>(pop.size()) < cfg.population) {
-      const int ts = slot++;
-      Individual I;
-      const bool constructive = cfg.seed_mode == 1 || (cfg.seed_mode == 2 && ts % 2 == 1);
-      if (constructive) {
-        bool cok = false;
-        I.sigma = seed_sigma_constructive(cfg, ctx, island, 0, ts, cok);
-        I.origin = cok ? 'c' : 'r';
-      } else {
-        I.sigma = seed_sigma_rejection(cfg, ctx, island, ts);
-        I.origin = 'r';
+    while (static_cast<int>(pop_.size()) < cfg_.population) {
+      const int B = cfg_.population - static_cast<int>(pop_.size());
+      std::vector<Individual> cand(static_cast<size_t>(B));
+      std::vector<char> need(static_cast<size_t>(B), 0);
+      for (int b = 0; b < B; ++b) {
+        const int ts = slot + b;
+        Individual& I = cand[static_cast<size_t>(b)];
+        const bool constructive = cfg_.seed_mode == 1 || (cfg_.seed_mode == 2 && ts % 2 == 1);
+        if (constructive) {
+          bool cok = false;
+          I.sigma = seed_sigma_constructive(cfg_, ctx_, island_, 0, ts, cok);
+          I.origin = cok ? 'c' : 'r';
+        } else {
+          I.sigma = seed_sigma_rejection(cfg_, ctx_, island_, ts);
+          I.origin = 'r';
+        }
+        I.birth_gen = 0;
+        I.birth_island = island_;
+        fill_canonical(I);
       }
-      I.birth_gen = 0;
-      I.birth_island = island;
-      fill_canonical(I);
-      if (++attempts > cap)
-        throw std::runtime_error(
-            "evolution: seeding exhausted -- population too large for the unique non-P1 "
-            "space?");
-      if (!dup_or_insert(I, tl)) continue;
-      evaluate_individual(I);
-      if (!commit_p1(I, tl, p1_children)) continue;
-      if (I.sg == 1) ++p1_children;
-      pop.push_back(std::move(I));
-      pool_insert(pop.back());
+      slot += B;
+      for (int b = 0; b < B; ++b) {
+        if (++attempts > cap)
+          throw std::runtime_error(
+              "evolution: seeding exhausted -- population too large for the unique non-P1 "
+              "space?");
+        if (dup_or_insert(cand[static_cast<size_t>(b)], tl)) need[static_cast<size_t>(b)] = 1;
+      }
+      for (int b = 0; b < B; ++b)
+        if (need[static_cast<size_t>(b)]) evaluate_individual(cand[static_cast<size_t>(b)]);
+      int p1_children = 0;
+      for (int b = 0; b < B; ++b) {
+        if (!need[static_cast<size_t>(b)]) continue;
+        Individual& I = cand[static_cast<size_t>(b)];
+        if (!commit_p1(I, tl, p1_children)) continue;
+        if (I.sg == 1) ++p1_children;
+        pop_.push_back(std::move(I));
+        pool_insert(pop_.back());
+      }
     }
     record(0, 0, tl, 0);
   }
 
-  // ---- generations: extinction [A11] + repopulation [A12] ----
-  while (true) {
+  // One termination check + one generation (extinction [A11] + repopulation
+  // [A12] + record) -- the v1.1 loop body. No-op once done().
+  void advance() {
+    if (done_) return;
+
     double min_ep = 1e300;
-    for (const auto& I : pop) min_ep = std::min(min_ep, I.e_pure);
-    if (min_ep <= etol) {
-      res.success = true;
+    for (const auto& I : pop_) min_ep = std::min(min_ep, I.e_pure);
+    if (min_ep <= etol_) {
+      res_.success = true;
       finish("e_tol");
-      break;
+      return;
     }
-    if (gen >= cfg.max_generations) {
+    if (gen_ >= cfg_.max_generations) {
       finish("max_generations");
-      break;
+      return;
     }
-    if (cfg.max_wall_s > 0 && seconds_since(t0) > cfg.max_wall_s) {
+    if (cfg_.max_wall_s > 0 && seconds_since(t0_) > cfg_.max_wall_s) {
       finish("wall_time");
-      break;
+      return;
     }
 
     // extinction [A11] with elitism [D5]
-    const int P = static_cast<int>(pop.size());
+    const int P = static_cast<int>(pop_.size());
     std::vector<int> order(static_cast<size_t>(P));
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(), [&](int a, int b) {
-      return std::tie(pop[static_cast<size_t>(a)].e_obj, pop[static_cast<size_t>(a)].e_pure,
-                      pop[static_cast<size_t>(a)].hash, a) <
-             std::tie(pop[static_cast<size_t>(b)].e_obj, pop[static_cast<size_t>(b)].e_pure,
-                      pop[static_cast<size_t>(b)].hash, b);
+      return std::tie(pop_[static_cast<size_t>(a)].e_obj, pop_[static_cast<size_t>(a)].e_pure,
+                      pop_[static_cast<size_t>(a)].hash, a) <
+             std::tie(pop_[static_cast<size_t>(b)].e_obj, pop_[static_cast<size_t>(b)].e_pure,
+                      pop_[static_cast<size_t>(b)].hash, b);
     });
     std::vector<char> elite(static_cast<size_t>(P), 0);
-    for (int e = 0; e < std::min(cfg.elitism_best, P); ++e)
+    for (int e = 0; e < std::min(cfg_.elitism_best, P); ++e)
       elite[static_cast<size_t>(order[static_cast<size_t>(e)])] = 1;
-    const double e_min = pop[static_cast<size_t>(order[0])].e_obj;
-    double beta = cfg.beta;
-    if (cfg.metropolis && beta <= 0) {  // auto: median structure survives 50% [A11]
+    const double e_min = pop_[static_cast<size_t>(order[0])].e_obj;
+    double beta = cfg_.beta;
+    if (cfg_.metropolis && beta > 0 && cfg_.beta_schedule == 1)
+      beta *= std::pow(cfg_.beta_growth, static_cast<double>(gen_));  // [A11] geometric, v1.5
+    if (cfg_.metropolis && beta <= 0) {  // auto: median structure survives 50% [A11]
       std::vector<double> diffs;
-      diffs.reserve(pop.size());
-      for (const auto& I : pop) diffs.push_back(I.e_obj - e_min);
+      diffs.reserve(pop_.size());
+      for (const auto& I : pop_) diffs.push_back(I.e_obj - e_min);
       const double med = median_of(std::move(diffs));
       beta = (med > 1e-300) ? (0.6931471805599453 / med) : 1e300;
     }
     std::vector<Individual> survivors;
-    survivors.reserve(pop.size());
+    survivors.reserve(pop_.size());
     int killed = 0;
     for (int i = 0; i < P; ++i) {
       bool keep;
       if (elite[static_cast<size_t>(i)]) {
         keep = true;
       } else {
-        const double ei = pop[static_cast<size_t>(i)].e_obj;
+        const double ei = pop_[static_cast<size_t>(i)].e_obj;
         double p;
-        if (!cfg.metropolis)
+        if (!cfg_.metropolis)
           p = (ei <= 0) ? 1.0 : std::min(1.0, e_min / ei);
         else
           p = std::min(1.0, std::exp(-beta * (ei - e_min)));
-        CounterRng r(cfg.seed, static_cast<uint64_t>(island), static_cast<uint64_t>(gen),
+        CounterRng r(cfg_.seed, static_cast<uint64_t>(island_), static_cast<uint64_t>(gen_),
                      static_cast<uint64_t>(i), RngPurpose::ExtinctionDraw);
         keep = r.uniform() < p;
       }
       if (keep)
-        survivors.push_back(std::move(pop[static_cast<size_t>(i)]));
+        survivors.push_back(std::move(pop_[static_cast<size_t>(i)]));
       else
         ++killed;
     }
-    pop.swap(survivors);
-    const int kept = static_cast<int>(pop.size());
+    pop_.swap(survivors);
+    const int kept = static_cast<int>(pop_.size());
 
     // repopulation [A12]; RNG streams keyed by the children's birth generation.
-    // Per slot: mutate a uniform survivor until the canonical is new (retry
-    // budget), then constructive fallback, then plain shuffles; a P1-rejected
-    // candidate continues the slot's own attempt stream.
+    // v1.2 round-based execution: each unresolved slot spins (serially, in
+    // slot order) to its next non-duplicate candidate (provisional archive
+    // insert), the round's provisionals are evaluated in parallel, then
+    // committed serially in slot order; a P1-rejected slot resumes its own
+    // attempt sequence next round. With the default quota 0 and no post-seed
+    // P1 events (the empirical case) this is bit-equivalent to the v1.1
+    // sequential loop.
     Tally tl;
     int fb = 0;
-    int p1_children = 0;
-    std::vector<Individual> newborn;
-    newborn.reserve(static_cast<size_t>(std::max(0, cfg.population - kept)));
-    for (int v = kept; v < cfg.population; ++v) {
-      const int q = v - kept;
-      CounterRng prng(cfg.seed, static_cast<uint64_t>(island), static_cast<uint64_t>(gen) + 1,
-                      static_cast<uint64_t>(v), RngPurpose::ParentPick);
-      CounterRng mrng(cfg.seed, static_cast<uint64_t>(island), static_cast<uint64_t>(gen) + 1,
-                      static_cast<uint64_t>(v), RngPurpose::Mutation);
+    const int nslots = cfg_.population - kept;
+    struct SlotState {
+      CounterRng prng, mrng;
       std::unique_ptr<CounterRng> crng;
       int stage = 0;  // 0 mutate, 1 constructive fallback, 2 shuffle fallback
       int at_m = 0, at_c = 0, at_s = 0;
-      Individual child;
       bool resolved = false;
-      while (!resolved) {
-        std::vector<int> sig;
-        char org = 'r';
-        if (stage == 0) {
-          if (at_m >= cfg.retry_budget) {  // constructive fallback [A12]
-            ++fb;
-            stage = 1;
-            crng.reset(new CounterRng(cfg.seed, static_cast<uint64_t>(island),
-                                      static_cast<uint64_t>(gen) + 1,
-                                      static_cast<uint64_t>(kept + q),
-                                      RngPurpose::ConstructiveSeed));
-            continue;
+      Individual child;
+      SlotState(CounterRng p, CounterRng m) : prng(p), mrng(m) {}
+    };
+    std::vector<SlotState> ss;
+    ss.reserve(static_cast<size_t>(std::max(0, nslots)));
+    for (int v = kept; v < cfg_.population; ++v)
+      ss.emplace_back(
+          CounterRng(cfg_.seed, static_cast<uint64_t>(island_), static_cast<uint64_t>(gen_) + 1,
+                     static_cast<uint64_t>(v), RngPurpose::ParentPick),
+          CounterRng(cfg_.seed, static_cast<uint64_t>(island_), static_cast<uint64_t>(gen_) + 1,
+                     static_cast<uint64_t>(v), RngPurpose::Mutation));
+    int unresolved = nslots;
+    int p1_children = 0;
+    std::vector<int> pend;
+    while (unresolved > 0) {
+      pend.clear();
+      for (int q = 0; q < nslots; ++q) {
+        SlotState& S = ss[static_cast<size_t>(q)];
+        if (S.resolved) continue;
+        bool prov = false;
+        while (!prov) {
+          std::vector<int> sig;
+          char org = 'r';
+          if (S.stage == 0) {
+            if (S.at_m >= cfg_.retry_budget) {  // constructive fallback [A12]
+              ++fb;
+              S.stage = 1;
+              S.crng.reset(new CounterRng(
+                  cfg_.seed, static_cast<uint64_t>(island_), static_cast<uint64_t>(gen_) + 1,
+                  static_cast<uint64_t>(kept + q), RngPurpose::ConstructiveSeed));
+              continue;
+            }
+            const Individual& parent =
+                pop_[static_cast<size_t>(S.prng.below(static_cast<uint64_t>(kept)))];
+            sig = mutate_sigma(parent, cfg_, ctx_, S.mrng);
+            org = 'm';
+            ++S.at_m;
+          } else if (S.stage == 1) {
+            if (S.at_c >= cfg_.retry_budget) {
+              S.stage = 2;
+              continue;
+            }
+            bool cok = false;
+            sig = constructive_from_rng(cfg_, ctx_, *S.crng, cok);
+            org = cok ? 'f' : 'r';
+            ++S.at_c;
+          } else {
+            if (S.at_s >= cfg_.retry_budget * 10)
+              throw std::runtime_error(
+                  "evolution: repopulation exhausted -- unique non-P1 space likely saturated; "
+                  "reduce population or generations");
+            sig = composition_sigma(cfg_);
+            S.crng->shuffle(sig.begin(), sig.end());
+            org = 'r';
+            ++S.at_s;
           }
-          const Individual& parent =
-              pop[static_cast<size_t>(prng.below(static_cast<uint64_t>(kept)))];
-          sig = mutate_sigma(parent, cfg, ctx, mrng);
-          org = 'm';
-          ++at_m;
-        } else if (stage == 1) {
-          if (at_c >= cfg.retry_budget) {
-            stage = 2;
-            continue;
-          }
-          bool cok = false;
-          sig = constructive_from_rng(cfg, ctx, *crng, cok);
-          org = cok ? 'f' : 'r';
-          ++at_c;
-        } else {
-          if (at_s >= cfg.retry_budget * 10)
-            throw std::runtime_error(
-                "evolution: repopulation exhausted -- unique non-P1 space likely saturated; "
-                "reduce population or generations");
-          sig = composition_sigma(cfg);
-          crng->shuffle(sig.begin(), sig.end());
-          org = 'r';
-          ++at_s;
+          S.child = Individual{};
+          S.child.sigma = std::move(sig);
+          S.child.origin = org;
+          S.child.birth_gen = gen_ + 1;
+          S.child.birth_island = island_;
+          fill_canonical(S.child);
+          if (!dup_or_insert(S.child, tl)) continue;
+          prov = true;
         }
-        child = Individual{};
-        child.sigma = std::move(sig);
-        child.origin = org;
-        child.birth_gen = gen + 1;
-        child.birth_island = island;
-        fill_canonical(child);
-        if (!dup_or_insert(child, tl)) continue;
-        evaluate_individual(child);
-        if (!commit_p1(child, tl, p1_children)) continue;  // P1: spin on within the slot
-        if (child.sg == 1) ++p1_children;
-        resolved = true;
+        pend.push_back(q);
       }
-      newborn.push_back(std::move(child));
+      for (int j = 0; j < static_cast<int>(pend.size()); ++j)
+        evaluate_individual(ss[static_cast<size_t>(pend[static_cast<size_t>(j)])].child);
+      for (int j = 0; j < static_cast<int>(pend.size()); ++j) {
+        SlotState& S = ss[static_cast<size_t>(pend[static_cast<size_t>(j)])];
+        if (!commit_p1(S.child, tl, p1_children)) continue;  // P1 slot resumes next round
+        if (S.child.sg == 1) ++p1_children;
+        S.resolved = true;
+        --unresolved;
+      }
     }
-    for (auto& c : newborn) {
-      pop.push_back(std::move(c));
-      pool_insert(pop.back());
+    for (int q = 0; q < nslots; ++q) {
+      pop_.push_back(std::move(ss[static_cast<size_t>(q)].child));
+      pool_insert(pop_.back());
     }
 
-    ++gen;
-    record(gen, killed, tl, fb);
-    if (cb && cfg.checkpoint_every > 0 && gen % cfg.checkpoint_every == 0)
-      cb(island, gen, res.pool);
+    ++gen_;
+    record(gen_, killed, tl, fb);
+    if (cb_ && cfg_.checkpoint_every > 0 && gen_ % cfg_.checkpoint_every == 0)
+      cb_(island_, gen_, res_.pool);
     // v1.1 [A13]: stagnation stop -- repopulation degenerated to all-fallback seeding
-    if (cfg.stagnation_stop > 0 && killed > 0 && fb >= killed) {
-      if (++stall_gens >= cfg.stagnation_stop) {
+    if (cfg_.stagnation_stop > 0 && killed > 0 && fb >= killed) {
+      if (++stall_gens_ >= cfg_.stagnation_stop) {
         finish("stagnation");
-        break;
+        return;
       }
     } else {
-      stall_gens = 0;
+      stall_gens_ = 0;
     }
   }
-  return res;
+
+ private:
+  void finish(const char* why) {
+    res_.stop_reason = why;
+    res_.generations = gen_;
+    done_ = true;
+  }
+
+  int p1_in_pop() const {
+    int c = 0;
+    for (const auto& I : pop_)
+      if (I.sg == 1) ++c;
+    return c;
+  }
+
+  // Filtration + evaluation pipeline, split for the v1.2 round-based parallel
+  // execution: fill_canonical (parallel-safe, pure), dup_or_insert (serial;
+  // provisional archive insert -- correct for BOTH later outcomes, since v1.1
+  // archived admitted AND P1-rejected candidates alike), evaluate_individual
+  // (parallel-safe, one spglib call), commit_p1 (serial quota check [A7][A8]).
+  void fill_canonical(Individual& out) const {
+    out.canonical = canonical_labels(out.sigma, ctx_.perms);
+    out.hash = hash_labels(out.canonical);
+  }
+
+  bool dup_or_insert(const Individual& out, Tally& tl) {
+    const std::string k = key_of(out.canonical);
+    if (archive_.count(k)) {
+      ++tl.dup;
+      return false;
+    }
+    archive_.insert(k);
+    return true;
+  }
+
+  void evaluate_individual(Individual& out) const {
+    const Structure s = decorate(ctx_.geom, out.sigma, cfg_.species);
+    const SymmetryInfo info = get_symmetry(s, cfg_.symprec);
+    out.sg = info.sg_number;
+    out.sg_symbol = info.sg_symbol;
+    out.eq_atoms = info.equivalent_atoms;
+    out.stab_ops.clear();
+    for (const auto& op : info.ops)
+      if (!is_identity(op.R)) out.stab_ops.push_back(op);
+    out.D = displacement_count(s, info, cfg_.symprec);
+    const CorrData cd = count_pairs(s, ctx_.zones);
+    out.e_pure = cfg_.full_pairs ? e_pure_full(cd, cfg_.x_achieved, ctx_.weights)
+                                 : e_pure_diagonal(cd, cfg_.x_achieved, ctx_.weights);
+    out.e_obj = out.e_pure * std::pow(static_cast<double>(out.D), cfg_.gamma);
+  }
+
+  bool commit_p1(const Individual& out, Tally& tl, int p1_children) {
+    ++tl.ev;
+    if (out.sg == 1 && p1_in_pop() + p1_children >= cfg_.p1_elite_quota) {
+      ++tl.p1;  // canonical already archived at dup_or_insert time (= v1.1)
+      return false;
+    }
+    return true;
+  }
+
+  void pool_insert(const Individual& I) {
+    res_.pool.push_back(I);
+    std::sort(res_.pool.begin(), res_.pool.end(), [](const Individual& a, const Individual& b) {
+      return std::tie(a.e_obj, a.e_pure, a.hash) < std::tie(b.e_obj, b.e_pure, b.hash);
+    });
+    if (static_cast<int>(res_.pool.size()) > cfg_.outputs)
+      res_.pool.resize(static_cast<size_t>(cfg_.outputs));
+  }
+
+  void record(int gen, int killed, const Tally& tl, int fb) {
+    GenStats st;
+    st.island = island_;
+    st.gen = gen;
+    double bp = 1e300;
+    size_t bi = 0;
+    for (size_t i = 0; i < pop_.size(); ++i) {
+      bp = std::min(bp, pop_[i].e_pure);
+      if (std::tie(pop_[i].e_obj, pop_[i].e_pure, pop_[i].hash) <
+          std::tie(pop_[bi].e_obj, pop_[bi].e_pure, pop_[bi].hash))
+        bi = i;
+    }
+    st.best_e_pure = bp;
+    st.best_e_obj = pop_[bi].e_obj;
+    st.best_D = pop_[bi].D;
+    st.best_sg = pop_[bi].sg;
+    std::vector<double> eo;
+    eo.reserve(pop_.size());
+    for (const auto& I : pop_) eo.push_back(I.e_obj);
+    st.median_e_obj = median_of(std::move(eo));
+    st.killed = killed;
+    st.evals = tl.ev;
+    st.dup_rejected = tl.dup;
+    st.p1_rejected = tl.p1;
+    st.fallback_seeds = fb;
+    st.elapsed_s = seconds_since(t0_);
+    res_.log.push_back(st);
+    res_.evals += tl.ev;
+    if (cfg_.log_info)
+      std::printf(
+          "[isl %d gen %4d] E_pure*=%.6e E_obj*=%.6e D*=%4d SG*=%3d med=%.3e kill=%3d ev=%3d "
+          "dup=%d p1=%d fb=%d t=%.1fs\n",
+          island_, gen, st.best_e_pure, st.best_e_obj, st.best_D, st.best_sg, st.median_e_obj,
+          st.killed, st.evals, st.dup_rejected, st.p1_rejected, st.fallback_seeds, st.elapsed_s);
+  }
+
+  const RunConfig& cfg_;
+  const RunContext& ctx_;
+  int island_ = 0;
+  Clock::time_point t0_;
+  CheckpointFn cb_;
+  double etol_ = 0;
+  std::unordered_set<std::string> archive_;  // [A9][A10] canonical labels ever seen
+  std::vector<Individual> pop_;
+  IslandResult res_;
+  int gen_ = 0;
+  int stall_gens_ = 0;
+  bool done_ = false;
+};
+
+}  // namespace
+
+IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
+                           const CheckpointFn& cb) {
+  IslandEngine e(cfg, ctx, island, Clock::now(), cb);
+  e.seed_generation0();
+  while (!e.done()) e.advance();
+  return e.take_result();
 }
 
 RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&& rs) {
@@ -709,7 +795,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
     return std::string(nb);
   };
   j << "{\n";
-  j << "  \"exsqs_version\": \"1.1.0\",\n";
+  j << "  \"exsqs_version\": \"1.2.0\",\n";
   j << "  \"checkpoint\": " << (checkpoint ? "true" : "false") << ",\n";
   j << "  \"success\": " << (out.success ? "true" : "false") << ",\n";
   j << "  \"islands\": " << out.islands << ",\n";
@@ -768,7 +854,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
 }
 
 int run_from_config(const RunConfig& cfg) {
-  std::printf("exsqs 1.1.0 | spglib %s\n", spglib_version().c_str());
+  std::printf("exsqs 1.2.0 | spglib %s\n", spglib_version().c_str());
   const RunContext ctx = RunContext::build(cfg);
   const int N = ctx.geom.natoms();
   std::printf("system: %d sites |", N);
