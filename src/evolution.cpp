@@ -741,9 +741,28 @@ RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&&
 
 RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb) {
   const auto t0 = Clock::now();
+  std::vector<std::unique_ptr<IslandEngine>> eng;
+  eng.reserve(static_cast<size_t>(cfg.islands));
+  for (int i = 0; i < cfg.islands; ++i)
+    eng.emplace_back(new IslandEngine(cfg, ctx, i, t0, cb));
+
+  for (auto& e : eng) e->seed_generation0();
+
+  // Lockstep generation rounds (v1.2); synchronous ring migration (SPEC 8.1).
+  int round = 0;
+  while (true) {
+    bool any = false;
+    for (auto& e : eng)
+      if (!e->done()) any = true;
+    if (!any) break;
+    for (auto& e : eng)
+      if (!e->done()) e->advance();
+    ++round;
+  }
+
   std::vector<IslandResult> rs;
-  rs.reserve(static_cast<size_t>(cfg.islands));
-  for (int i = 0; i < cfg.islands; ++i) rs.push_back(evolve_island(cfg, ctx, i, cb));
+  rs.reserve(eng.size());
+  for (auto& e : eng) rs.push_back(e->take_result());
   RunOutput out = merge_island_results(cfg, std::move(rs));
   out.wall_s = seconds_since(t0);
   return out;
