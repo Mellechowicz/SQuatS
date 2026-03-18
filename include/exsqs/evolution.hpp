@@ -46,6 +46,8 @@ struct IslandResult {
   bool success = false;  // min E_pure <= e_tol reached [D7]
   int generations = 0;
   long long evals = 0;
+  int migrants_in = 0;   // v1.2 ring migration
+  int migrants_out = 0;  // v1.2 ring migration
   std::string stop_reason;  // e_tol | max_generations | wall_time
 };
 

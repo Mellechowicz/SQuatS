@@ -584,6 +584,34 @@ class IslandEngine {
     }
   }
 
+  // ---- synchronous ring migration (v1.2): best-k pool copies, dedup-aware ----
+  std::vector<Individual> emigrants(int k) const {
+    const int n = std::min<int>(k, static_cast<int>(res_.pool.size()));
+    return std::vector<Individual>(res_.pool.begin(), res_.pool.begin() + n);
+  }
+  void note_emigrants(int n) { res_.migrants_out += n; }
+  void receive_migrants(const std::vector<Individual>& in) {
+    if (done_ || pop_.empty()) return;
+    int acc = 0;
+    for (const Individual& m : in) {
+      const std::string k = key_of(m.canonical);
+      if (archive_.count(k)) continue;  // receiver already explored it
+      archive_.insert(k);
+      // replace the current worst member; the elite [D5] is never the worst
+      // while P >= 2, so E_min stays monotone
+      size_t wi = 0;
+      for (size_t i = 1; i < pop_.size(); ++i)
+        if (std::tie(pop_[i].e_obj, pop_[i].e_pure, pop_[i].hash) >
+            std::tie(pop_[wi].e_obj, pop_[wi].e_pure, pop_[wi].hash))
+          wi = i;
+      pop_[wi] = m;
+      pool_insert(pop_[wi]);
+      ++acc;
+    }
+    res_.migrants_in += acc;
+  }
+
+
  private:
   void finish(const char* why) {
     res_.stop_reason = why;
