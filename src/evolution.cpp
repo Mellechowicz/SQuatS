@@ -750,6 +750,8 @@ RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&&
     out.island_generations.push_back(r.generations);
     out.island_success.push_back(r.success ? 1 : 0);
     out.island_stop.push_back(r.stop_reason);
+    out.island_migrants_in.push_back(r.migrants_in);
+    out.island_migrants_out.push_back(r.migrants_out);
     for (auto& g : r.log) out.log.push_back(g);
     for (auto& I : r.pool) pooled.push_back(std::move(I));
   }
@@ -786,6 +788,21 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
     for (auto& e : eng)
       if (!e->done()) e->advance();
     ++round;
+    if (cfg.islands > 1 && cfg.migrants > 0 && cfg.migration_every > 0 &&
+        round % cfg.migration_every == 0) {
+      std::vector<int> act;
+      for (int i = 0; i < cfg.islands; ++i)
+        if (!eng[static_cast<size_t>(i)]->done()) act.push_back(i);
+      if (act.size() >= 2) {
+        std::vector<std::vector<Individual>> sends;
+        sends.reserve(act.size());
+        for (int i : act) sends.push_back(eng[static_cast<size_t>(i)]->emigrants(cfg.migrants));
+        for (size_t j = 0; j < act.size(); ++j) {
+          eng[static_cast<size_t>(act[(j + 1) % act.size()])]->receive_migrants(sends[j]);
+          eng[static_cast<size_t>(act[j])]->note_emigrants(static_cast<int>(sends[j].size()));
+        }
+      }
+    }
   }
 
   std::vector<IslandResult> rs;
@@ -852,6 +869,13 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "],\n  \"island_stop\": [";
   for (size_t i = 0; i < out.island_stop.size(); ++i)
     j << (i ? "," : "") << '"' << json_escape(out.island_stop[i]) << '"';
+  j << "],\n";
+  j << "  \"island_migrants_in\": [";
+  for (size_t i = 0; i < out.island_migrants_in.size(); ++i)
+    j << (i ? "," : "") << out.island_migrants_in[i];
+  j << "],\n  \"island_migrants_out\": [";
+  for (size_t i = 0; i < out.island_migrants_out.size(); ++i)
+    j << (i ? "," : "") << out.island_migrants_out[i];
   j << "],\n";
   j << "  \"total_evaluations\": " << out.evals << ",\n";
   j << "  \"wall_s\": " << num(out.wall_s) << ",\n";

@@ -61,6 +61,8 @@ struct RunOutput {
   std::vector<int> island_generations;
   std::vector<int> island_success;
   std::vector<std::string> island_stop;
+  std::vector<int> island_migrants_in;   // v1.2
+  std::vector<int> island_migrants_out;  // v1.2
 };
 
 // Immutable per-run context shared by all islands (geometry, zones, weights,
