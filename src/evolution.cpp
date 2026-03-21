@@ -609,6 +609,9 @@ class IslandEngine {
       ++acc;
     }
     res_.migrants_in += acc;
+    if (acc > 0 && cfg_.log_info)
+      std::printf("[isl %d gen %4d] migration: accepted %d/%zu migrant(s)\n", island_, gen_, acc,
+                  in.size());
   }
 
 
