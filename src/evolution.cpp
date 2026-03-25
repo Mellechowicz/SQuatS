@@ -1,5 +1,9 @@
 #include "exsqs/evolution.hpp"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -7,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <map>
 #include <numeric>
 #include <set>
@@ -23,6 +28,22 @@ namespace {
 
 namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
+
+// v1.2: OpenMP is a performance layer only -- results are identical for any
+// thread count (counter-keyed RNG [A14] + deterministic commit ordering).
+int total_threads(const RunConfig& cfg) {
+#ifdef _OPENMP
+  return cfg.omp_threads > 0 ? cfg.omp_threads : omp_get_max_threads();
+#else
+  (void)cfg;
+  return 1;
+#endif
+}
+
+std::mutex& checkpoint_mutex() {
+  static std::mutex m;
+  return m;
+}
 
 double seconds_since(const Clock::time_point& t0) {
   return std::chrono::duration<double>(Clock::now() - t0).count();
@@ -360,6 +381,9 @@ class IslandEngine {
       const int B = cfg_.population - static_cast<int>(pop_.size());
       std::vector<Individual> cand(static_cast<size_t>(B));
       std::vector<char> need(static_cast<size_t>(B), 0);
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(inner_threads_) schedule(dynamic) if (inner_threads_ > 1)
+#endif
       for (int b = 0; b < B; ++b) {
         const int ts = slot + b;
         Individual& I = cand[static_cast<size_t>(b)];
@@ -384,6 +408,9 @@ class IslandEngine {
               "space?");
         if (dup_or_insert(cand[static_cast<size_t>(b)], tl)) need[static_cast<size_t>(b)] = 1;
       }
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(inner_threads_) schedule(dynamic) if (inner_threads_ > 1)
+#endif
       for (int b = 0; b < B; ++b)
         if (need[static_cast<size_t>(b)]) evaluate_individual(cand[static_cast<size_t>(b)]);
       int p1_children = 0;
@@ -554,6 +581,9 @@ class IslandEngine {
         }
         pend.push_back(q);
       }
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(inner_threads_) schedule(dynamic) if (inner_threads_ > 1)
+#endif
       for (int j = 0; j < static_cast<int>(pend.size()); ++j)
         evaluate_individual(ss[static_cast<size_t>(pend[static_cast<size_t>(j)])].child);
       for (int j = 0; j < static_cast<int>(pend.size()); ++j) {
@@ -571,8 +601,10 @@ class IslandEngine {
 
     ++gen_;
     record(gen_, killed, tl, fb);
-    if (cb_ && cfg_.checkpoint_every > 0 && gen_ % cfg_.checkpoint_every == 0)
+    if (cb_ && cfg_.checkpoint_every > 0 && gen_ % cfg_.checkpoint_every == 0) {
+      std::lock_guard<std::mutex> lk(checkpoint_mutex());  // islands may run concurrently (v1.2)
       cb_(island_, gen_, res_.pool);
+    }
     // v1.1 [A13]: stagnation stop -- repopulation degenerated to all-fallback seeding
     if (cfg_.stagnation_stop > 0 && killed > 0 && fb >= killed) {
       if (++stall_gens_ >= cfg_.stagnation_stop) {
@@ -731,6 +763,10 @@ class IslandEngine {
   int gen_ = 0;
   int stall_gens_ = 0;
   bool done_ = false;
+  int inner_threads_ = 1;
+
+ public:
+  void set_inner_threads(int n) { inner_threads_ = std::max(1, n); }
 };
 
 }  // namespace
@@ -738,6 +774,7 @@ class IslandEngine {
 IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
                            const CheckpointFn& cb) {
   IslandEngine e(cfg, ctx, island, Clock::now(), cb);
+  e.set_inner_threads(total_threads(cfg));
   e.seed_generation0();
   while (!e.done()) e.advance();
   return e.take_result();
@@ -779,7 +816,31 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
   for (int i = 0; i < cfg.islands; ++i)
     eng.emplace_back(new IslandEngine(cfg, ctx, i, t0, cb));
 
-  for (auto& e : eng) e->seed_generation0();
+  // Thread budget (v1.2): outer over islands, remainder inside each island's
+  // evaluation rounds. Thread counts affect wall time only, never results.
+  const int tt = total_threads(cfg);
+  const int outer = std::min<int>(cfg.islands, std::max(1, tt));
+  const int inner = std::max(1, tt / std::max(1, outer));
+#ifdef _OPENMP
+  if (outer > 1 && inner > 1) omp_set_max_active_levels(2);
+#endif
+  for (auto& e : eng) e->set_inner_threads(inner);
+
+  {
+    std::vector<std::exception_ptr> errs(eng.size());
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(outer) schedule(static, 1)
+#endif
+    for (int i = 0; i < static_cast<int>(eng.size()); ++i) {
+      try {
+        eng[static_cast<size_t>(i)]->seed_generation0();
+      } catch (...) {
+        errs[static_cast<size_t>(i)] = std::current_exception();
+      }
+    }
+    for (auto& ep : errs)
+      if (ep) std::rethrow_exception(ep);
+  }
 
   // Lockstep generation rounds (v1.2); synchronous ring migration (SPEC 8.1).
   int round = 0;
@@ -788,8 +849,21 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
     for (auto& e : eng)
       if (!e->done()) any = true;
     if (!any) break;
-    for (auto& e : eng)
-      if (!e->done()) e->advance();
+    std::vector<std::exception_ptr> errs(eng.size());
+    {
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(outer) schedule(static, 1)
+#endif
+      for (int i = 0; i < static_cast<int>(eng.size()); ++i) {
+        try {
+          eng[static_cast<size_t>(i)]->advance();
+        } catch (...) {
+          errs[static_cast<size_t>(i)] = std::current_exception();
+        }
+      }
+    }
+    for (auto& ep : errs)
+      if (ep) std::rethrow_exception(ep);
     ++round;
     if (cfg.islands > 1 && cfg.migrants > 0 && cfg.migration_every > 0 &&
         round % cfg.migration_every == 0) {
