@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.1 (2026-03-10) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.2 (2026-03-31) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -187,6 +187,29 @@ inherited from the paper's scale, were infeasible and are replaced by floor-rela
   size P; the M outputs are the best M *pairwise-inequivalent* structures pooled across
   islands/restarts, ranked by `E_obj` (report `E_pure`, `D`, SG for each).
 
+### 8.1 Parallel execution model (v1.2)
+
+- **Lockstep islands:** all active islands advance one generation per round; a stopped island
+  (success/caps/stagnation) freezes and no longer participates. `max_wall_s` and the logged
+  `elapsed_s` measure *global run* wall time in this model.
+- **Synchronous ring migration** among the still-active islands every `migration_every` rounds:
+  island *i* sends copies of its `migrants` pool-best individuals to the next active island
+  (ascending-index ring). Receivers skip canonicals already in their archive; otherwise the
+  migrant is archived and replaces the receiver's current worst member (the [D5] elite is never
+  the worst for P ≥ 2, so `E_min` stays monotone). Exchanges are computed from pre-round
+  snapshots and use no RNG — fully deterministic.
+- **Round-based generations:** within seeding and repopulation, candidate generation +
+  canonicalization and per-candidate evaluation (spglib, D, E) run in parallel; the duplicate
+  check with *provisional* archive insert and the quota commit run serially in slot order.
+  Provisional insertion is outcome-independent (v1.1 archived admitted and P1-rejected candidates
+  alike), so with the default `p1_elite_quota: 0` and no post-seed P1 admissions the rounds are
+  bit-equivalent to the v1.1 sequential loop. A P1-rejected slot resumes its own attempt stream
+  next round (normative semantics for the rare quota/P1 cases).
+- **Thread budget:** `omp_threads` (auto = OpenMP default) split as outer = min(islands, T) over
+  islands, inner = T/outer inside each island's evaluation rounds. **Thread counts never change
+  results** ([A14]) — verified bitwise for 1 vs 4 threads (T-P1) and against v1.1 sequential run
+  artifacts.
+
 ## 9. Composition handling
 
 - `N_t = round(x_t·N)` by largest-remainder so `Σ N_t = N`; achieved `x̃_t` logged and used as the
@@ -201,6 +224,8 @@ inherited from the paper's scale, were infeasible and are replaced by floor-rela
 - Counter-based generator (Philox/PCG) keyed by `(master_seed, island, generation, slot, purpose)`
   ⇒ trajectories are independent of thread count and scheduling; bit-identical reruns from the same
   config+seed. **[A14]**
+- v1.2 realizes the thread-invariance guarantee end-to-end (verified bitwise for 1 vs 4 threads
+  and against v1.1 sequential artifacts); wall-time semantics are global in the lockstep model.
 - `summary.json` records: config echo, achieved composition, seeds, git commit, spglib/phonopy
   versions, timings.
 
@@ -252,6 +277,9 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-R1 | reproducibility | same seed/config, 1 vs 16 threads, 1 vs 4 islands re-run: identical trajectories/outputs | bit-exact |
 | T-V1 | cross-validation | `validate.py` (pymatgen/numpy) recomputes E_pure of every emitted structure | ≤ 1e-10 abs diff |
 | T-B1 | benchmark | evaluations/s vs N (54…1024 sites); OMP scaling on one node; island scaling 1→32 ranks | recorded, no gate |
+| T-P0 | unit (v1.2) | symmetry/displacement/correlation pipeline under 4 concurrent threads vs serial | identical |
+| T-P1 | reproducibility (v1.2) | `omp_threads` 1 vs 4, islands+migration and single-island paths | bit-exact |
+| T-M1 | integration (v1.2) | ring migration exchanges pool-best; dedup drops only; deterministic rerun | pass |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -291,6 +319,17 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.2 (2026-03-31)** — step-3 parallel layer:
+  - §8.1: lockstep islands, synchronous ring migration (defined; previously only schema keys), and
+    round-based generations with provisional archive inserts; bit-equivalent to v1.1 for the
+    default quota and empirically preserved on all reference runs (verified against 1.1.0
+    artifacts to the last bit, including under `omp_threads: 4`).
+  - `parallel.omp_threads` active; nested outer(islands)×inner(evaluation) OpenMP; exceptions
+    captured per island and rethrown deterministically; checkpoint callback serialized.
+  - `summary.json` gains `island_migrants_in/out`. `max_wall_s`/`elapsed_s` are global run wall
+    time. New tests T-P0/T-P1/T-M1; engine refactored into a resumable IslandEngine (the
+    checkpoint/restart foundation for step 4). MPI multi-node island scaling ("ranks" in T-B1)
+    is deferred to the HPC step; `exsqs_bench_scaling` records single-node numbers.
 - **v1.1 (2026-03-10)** — step-2 integration findings:
   - §4.1: quantization floor `E_floor` defined, computed and logged; **the paper's absolute error
     scale is not reproducible from Alg. 2** (reported 2.92e-4 < floor 3.246e-3 for its own
