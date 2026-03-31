@@ -26,4 +26,11 @@ on reported scalars. Serial exploitation recipe (seed-reproducible):
 New in v1.1: constructive space-group seeding [D4] behind the P1 rejection filter,
 cyclic-subgroup [D6] moves, mutation `swaps: poisson` (+ `lambda`), `stagnation_stop`.
 
+## v1.2 notes
+
+Islands now advance in lockstep with synchronous ring migration (`migration_every`, `migrants`);
+generations execute as parallel rounds under OpenMP (`parallel.omp_threads`). Thread counts never
+change results: runs are bit-identical for 1 vs N threads and match 1.1.0 sequential artifacts
+exactly. Record single-node scaling with `./build/exsqs_bench_scaling`.
+
 License: MIT (see LICENSE).
