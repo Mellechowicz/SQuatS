@@ -45,7 +45,8 @@ add_library(exsqs_core
   src/dedup.cpp
   src/testcells.cpp
   src/config.cpp
-  src/evolution.cpp)
+  src/evolution.cpp
+  src/serialize.cpp)
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(exsqs_core PRIVATE -Wall -Wextra)
 if(TARGET Spglib::symspg)
