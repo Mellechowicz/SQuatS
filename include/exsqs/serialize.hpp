@@ -43,4 +43,47 @@ class ByteWriter {
   std::string buf_;
 };
 
+class ByteReader {
+ public:
+  ByteReader(const char* p, size_t n) : p_(p), end_(p + n) {}
+  explicit ByteReader(const std::string& s) : ByteReader(s.data(), s.size()) {}
+
+  uint8_t u8() { return static_cast<uint8_t>(*take(1)); }
+  uint32_t u32() { return get<uint32_t>(); }
+  uint64_t u64() { return get<uint64_t>(); }
+  int32_t i32() { return get<int32_t>(); }
+  int64_t i64() { return get<int64_t>(); }
+  double f64() { return get<double>(); }
+  std::string str() {
+    const uint32_t n = u32();
+    const char* p = take(n);
+    return std::string(p, n);
+  }
+  std::vector<int> ints() {
+    const uint32_t n = u32();
+    std::vector<int> v(n);
+    for (uint32_t i = 0; i < n; ++i) v[i] = i32();
+    return v;
+  }
+  std::vector<uint8_t> bytes() {
+    const uint32_t n = u32();
+    const char* p = take(n);
+    return std::vector<uint8_t>(p, p + n);
+  }
+  void raw_read(void* dst, size_t n);
+  size_t remaining() const { return static_cast<size_t>(end_ - p_); }
+
+ private:
+  const char* take(size_t n);  // bounds-checked; throws on truncation
+  template <typename T>
+  T get() {
+    T v;
+    const char* p = take(sizeof(T));
+    __builtin_memcpy(&v, p, sizeof(T));
+    return v;
+  }
+  const char* p_;
+  const char* end_;
+};
+
 }  // namespace exsqs
