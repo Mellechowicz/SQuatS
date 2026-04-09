@@ -86,4 +86,14 @@ class ByteReader {
   const char* end_;
 };
 
+// ---- codecs (bit-exact round trips) ----
+void put_individual(ByteWriter& w, const Individual& I);
+Individual get_individual(ByteReader& r);
+void put_individuals(ByteWriter& w, const std::vector<Individual>& v);
+std::vector<Individual> get_individuals(ByteReader& r);
+void put_genstats(ByteWriter& w, const GenStats& g);
+GenStats get_genstats(ByteReader& r);
+void put_island_result(ByteWriter& w, const IslandResult& r);
+IslandResult get_island_result(ByteReader& rd);
+
 }  // namespace exsqs
