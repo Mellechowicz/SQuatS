@@ -96,4 +96,11 @@ GenStats get_genstats(ByteReader& r);
 void put_island_result(ByteWriter& w, const IslandResult& r);
 IslandResult get_island_result(ByteReader& rd);
 
+// Trajectory signature [v1.3]: every config field that influences the run
+// trajectory (system geometry, composition, error model, evolution dynamics,
+// seed, islands, migration). Budget caps (max_generations, max_wall_s),
+// output settings and thread counts are deliberately excluded so chained
+// resubmissions may raise them.
+std::string trajectory_signature(const RunConfig& cfg);
+
 }  // namespace exsqs

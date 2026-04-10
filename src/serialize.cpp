@@ -145,4 +145,53 @@ IslandResult get_island_result(ByteReader& rd) {
   return r;
 }
 
+std::string trajectory_signature(const RunConfig& c) {
+  ByteWriter w;
+  w.raw("EXSQSIG1", 8);
+  // system geometry + composition
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) w.f64(c.proto.cell[i][j]);
+  w.u32(static_cast<uint32_t>(c.proto.sites.size()));
+  for (const auto& s : c.proto.sites)
+    for (int j = 0; j < 3; ++j) w.f64(s[j]);
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) w.i32(c.H[i][j]);
+  w.u32(static_cast<uint32_t>(c.species.size()));
+  for (const auto& sp : c.species) w.str(sp);
+  w.ints(c.counts);
+  for (double x : c.x_achieved) w.f64(x);
+  // zones / error model
+  w.i32(c.n_shells);
+  w.f64(c.shell_tol);
+  w.i32(static_cast<int32_t>(c.wform));
+  w.f64(c.wpow);
+  w.u32(static_cast<uint32_t>(c.wcustom.size()));
+  for (double x : c.wcustom) w.f64(x);
+  w.u8(c.full_pairs ? 1 : 0);
+  w.f64(c.gamma);
+  // evolution dynamics
+  w.i32(c.population);
+  w.i32(c.outputs);
+  w.f64(c.e_tol);
+  w.u8(c.metropolis ? 1 : 0);
+  w.f64(c.beta);
+  w.i32(c.beta_schedule);
+  w.f64(c.beta_growth);
+  w.i32(c.elitism_best);
+  w.i32(c.p1_elite_quota);
+  w.i32(c.mut_swaps);
+  w.f64(c.mut_poisson_lambda);
+  w.u8(c.mut_sympres ? 1 : 0);
+  w.i32(c.retry_budget);
+  w.i32(c.seed_mode);
+  w.i32(c.stagnation_stop);
+  // symmetry / rng / topology
+  w.f64(c.symprec);
+  w.u64(c.seed);
+  w.i32(c.islands);
+  w.i32(c.migration_every);
+  w.i32(c.migrants);
+  return w.data();
+}
+
 }  // namespace exsqs
