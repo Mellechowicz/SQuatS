@@ -843,6 +843,74 @@ void EngineHandle::serialize(ByteWriter& w) const { impl_->e.serialize(w); }
 void EngineHandle::deserialize(ByteReader& r) { impl_->e.deserialize(r); }
 bool EngineHandle::reopen_for_resume() { return impl_->e.reopen_for_resume(); }
 
+void save_run_state_blobs(const std::string& path, const RunConfig& cfg,
+                          const std::vector<std::string>& blobs_by_island) {
+  ensure_little_endian();
+  ByteWriter w;
+  w.raw("EXSQSTAT", 8);
+  w.u32(1);  // format version
+  w.str(trajectory_signature(cfg));
+  w.u32(static_cast<uint32_t>(blobs_by_island.size()));
+  for (size_t i = 0; i < blobs_by_island.size(); ++i) {
+    w.u32(static_cast<uint32_t>(i));
+    w.str(blobs_by_island[i]);
+  }
+  namespace fs = std::filesystem;
+  const fs::path fp(path);
+  if (fp.has_parent_path()) fs::create_directories(fp.parent_path());
+  const std::string tmp = path + ".tmp";
+  {
+    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    if (!f) throw std::runtime_error("state: cannot write " + tmp);
+    f.write(w.data().data(), static_cast<std::streamsize>(w.data().size()));
+  }
+  fs::rename(tmp, fp);
+}
+
+void save_run_state(const std::string& path, const RunConfig& cfg,
+                    const std::vector<EngineHandle>& engines) {
+  std::vector<std::string> blobs(engines.size());
+  for (const auto& e : engines) {
+    ByteWriter b;
+    e.serialize(b);
+    blobs[static_cast<size_t>(e.island())] = b.data();
+  }
+  save_run_state_blobs(path, cfg, blobs);
+}
+
+int load_run_state(const std::string& path, const RunConfig& cfg,
+                   std::vector<EngineHandle>& engines) {
+  ensure_little_endian();
+  std::ifstream f(path, std::ios::binary);
+  if (!f) throw std::runtime_error("state: cannot open " + path);
+  const std::string buf((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  ByteReader r(buf);
+  char magic[8];
+  r.raw_read(magic, 8);
+  if (std::memcmp(magic, "EXSQSTAT", 8) != 0) throw std::runtime_error("state: bad magic");
+  if (r.u32() != 1) throw std::runtime_error("state: unsupported format version");
+  if (r.str() != trajectory_signature(cfg))
+    throw std::runtime_error(
+        "state: trajectory signature mismatch -- the config differs from the checkpointed run "
+        "in a trajectory-relevant field (only budget caps may change on resume)");
+  const uint32_t nisl = r.u32();
+  if (nisl != engines.size() || static_cast<int>(nisl) != cfg.islands)
+    throw std::runtime_error("state: island count mismatch");
+  std::vector<char> seen(nisl, 0);
+  for (uint32_t k = 0; k < nisl; ++k) {
+    const uint32_t id = r.u32();
+    const std::string blob = r.str();
+    if (id >= nisl || seen[id]) throw std::runtime_error("state: duplicate/invalid island record");
+    ByteReader br(blob);
+    engines[id].deserialize(br);
+    seen[id] = 1;
+  }
+  int round = 0;
+  for (auto& e : engines)
+    if (e.reopen_for_resume()) round = std::max(round, e.generation());
+  return round;
+}
+
 IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
                            const CheckpointFn& cb) {
   EngineHandle e(cfg, ctx, island, cb);

@@ -49,4 +49,21 @@ class EngineHandle {
   std::unique_ptr<Impl> impl_;
 };
 
+// Whole-run state file (atomic tmp+rename): magic "EXSQSTAT", format version,
+// trajectory signature, island count, then (island id, engine blob) records.
+void save_run_state(const std::string& path, const RunConfig& cfg,
+                    const std::vector<EngineHandle>& engines);
+
+// Same file format from pre-serialized per-island blobs (index = island id);
+// used by the MPI driver's rank-0 writer.
+void save_run_state_blobs(const std::string& path, const RunConfig& cfg,
+                          const std::vector<std::string>& blobs_by_island);
+
+// Loads into pre-constructed engines (size must equal cfg.islands); verifies
+// the trajectory signature (throws on mismatch -- refuses to resume a
+// different run) and re-arms raisable stops. Returns the lockstep round to
+// resume from (= max generation over the still-active islands, 0 if none).
+int load_run_state(const std::string& path, const RunConfig& cfg,
+                   std::vector<EngineHandle>& engines);
+
 }  // namespace exsqs
