@@ -55,6 +55,7 @@ else()
   target_link_libraries(exsqs_core PUBLIC symspg)
 endif()
 find_package(OpenMP)
+find_package(MPI COMPONENTS CXX)  # v1.3: optional exsqs_mpi driver
 if(OpenMP_CXX_FOUND)
   target_link_libraries(exsqs_core PUBLIC OpenMP::OpenMP_CXX)
 endif()
