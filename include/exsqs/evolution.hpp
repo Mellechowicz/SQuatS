@@ -94,13 +94,17 @@ using CheckpointFn = std::function<void(int island, int gen, const std::vector<I
 
 IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
                            const CheckpointFn& cb = {});
-RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb = {});
+// v1.3: resume_from = path to a state.ckpt for bit-exact restart (signature-
+// checked; only budget caps may change); state_dir != "" writes state.ckpt at
+// every checkpoint round and at run end (enabling resubmission chains).
+RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb = {},
+                        const std::string& resume_from = "", const std::string& state_dir = "");
 
 // Merge per-island results into the pooled, deduplicated top-M output [D8].
 RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&& rs);
 void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput& out,
                    bool checkpoint);
 // Full serial driver (banner, run, outputs). Exit code: 0 success, 3 budget.
-int run_from_config(const RunConfig& cfg);
+int run_from_config(const RunConfig& cfg, const std::string& resume_from = "");
 
 }  // namespace exsqs
