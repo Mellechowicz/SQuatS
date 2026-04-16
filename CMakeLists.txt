@@ -70,6 +70,12 @@ add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
 target_compile_options(exsqs PRIVATE -Wall -Wextra)
 
+if(MPI_CXX_FOUND)
+  add_executable(exsqs_mpi src/mpi_main.cpp)
+  target_link_libraries(exsqs_mpi PRIVATE exsqs_core MPI::MPI_CXX)
+  target_compile_options(exsqs_mpi PRIVATE -Wall -Wextra)
+endif()
+
 add_executable(exsqs_bench tools/bench.cpp)
 target_link_libraries(exsqs_bench PRIVATE exsqs_core)
 target_compile_options(exsqs_bench PRIVATE -Wall -Wextra)
