@@ -18,6 +18,10 @@
 #include <string>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "exsqs/config.hpp"
 #include "exsqs/evolution.hpp"
 #include "exsqs/island_engine.hpp"
@@ -32,6 +36,15 @@ void usage() {
       "usage: mpirun -n R exsqs_mpi <config.yaml> [--set k.p=v ...] [--out DIR]\n"
       "  Rank-distributed islands (SPEC 8.2); results are bit-identical to `exsqs`\n"
       "  for any rank count. exit codes: 0 success | 3 budget exhausted | 1 error\n");
+}
+
+int local_threads(const exsqs::RunConfig& cfg) {
+#ifdef _OPENMP
+  return cfg.omp_threads > 0 ? cfg.omp_threads : omp_get_max_threads();
+#else
+  (void)cfg;
+  return 1;
+#endif
 }
 
 // Allgatherv of variable-length local byte buffers -> concatenation on all ranks.
@@ -133,6 +146,14 @@ int main(int argc, char** argv) {
     eng.reserve(static_cast<size_t>(cfg.islands));
     for (int i = 0; i < cfg.islands; ++i) eng.emplace_back(cfg, ctx, i);
 
+    const int T = local_threads(cfg);
+    const int outer = std::max(1, std::min<int>(static_cast<int>(owned.size()), T));
+    const int inner = std::max(1, T / outer);
+#ifdef _OPENMP
+    if (outer > 1 && inner > 1) omp_set_max_active_levels(2);
+#endif
+    for (int i : owned) eng[static_cast<size_t>(i)].set_inner_threads(inner);
+
     if (rank == 0) {
       std::printf("exsqs_mpi 1.3.0 | ranks=%d islands=%d (round-robin)\n", size, cfg.islands);
       std::printf("E_floor = %.6e | e_tol(effective) = %.4g%s\n", ctx.e_floor,
@@ -142,6 +163,9 @@ int main(int argc, char** argv) {
     int round = 0;
     {
       std::vector<std::exception_ptr> errs(owned.size());
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(outer) schedule(static, 1)
+#endif
       for (int k = 0; k < static_cast<int>(owned.size()); ++k) {
         try {
           eng[static_cast<size_t>(owned[static_cast<size_t>(k)])].seed_generation0();
@@ -161,6 +185,9 @@ int main(int argc, char** argv) {
       if (!any) break;
 
       std::vector<std::exception_ptr> errs(owned.size());
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(outer) schedule(static, 1)
+#endif
       for (int k = 0; k < static_cast<int>(owned.size()); ++k) {
         try {
           eng[static_cast<size_t>(owned[static_cast<size_t>(k)])].advance();
