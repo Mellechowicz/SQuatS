@@ -179,9 +179,12 @@ int main(int argc, char** argv) {
 
     // ---- lockstep rounds (SPEC 8.1/8.2) ----
     while (true) {
-      bool any = false;
+      std::vector<int> flags(static_cast<size_t>(cfg.islands), 0);
       for (int i : owned)
-        if (!eng[static_cast<size_t>(i)].done()) any = true;
+        flags[static_cast<size_t>(i)] = eng[static_cast<size_t>(i)].done() ? 0 : 1;
+      MPI_Allreduce(MPI_IN_PLACE, flags.data(), cfg.islands, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+      bool any = false;
+      for (int f : flags) any = any || (f != 0);
       if (!any) break;
 
       std::vector<std::exception_ptr> errs(owned.size());
