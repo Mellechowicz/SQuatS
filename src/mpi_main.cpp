@@ -202,6 +202,40 @@ int main(int argc, char** argv) {
         if (ep) std::rethrow_exception(ep);
       ++round;
 
+      if (cfg.islands > 1 && cfg.migrants > 0 && cfg.migration_every > 0 &&
+          round % cfg.migration_every == 0) {
+        std::vector<int> af(static_cast<size_t>(cfg.islands), 0);
+        for (int i : owned)
+          af[static_cast<size_t>(i)] = eng[static_cast<size_t>(i)].done() ? 0 : 1;
+        MPI_Allreduce(MPI_IN_PLACE, af.data(), cfg.islands, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        std::vector<int> act;
+        for (int i = 0; i < cfg.islands; ++i)
+          if (af[static_cast<size_t>(i)]) act.push_back(i);
+        if (act.size() >= 2) {
+          exsqs::ByteWriter lw;
+          std::vector<std::pair<int, int>> sent;
+          for (int i : owned)
+            if (af[static_cast<size_t>(i)]) {
+              const auto m = eng[static_cast<size_t>(i)].emigrants(cfg.migrants);
+              exsqs::ByteWriter b;
+              exsqs::put_individuals(b, m);
+              lw.u32(static_cast<uint32_t>(i));
+              lw.str(b.data());
+              sent.emplace_back(i, static_cast<int>(m.size()));
+            }
+          const std::vector<std::string> blob =
+              parse_records(allgather_bytes(lw.data()), cfg.islands);
+          for (size_t j = 0; j < act.size(); ++j) {
+            const int dst = act[(j + 1) % act.size()];
+            if (dst % size == rank) {
+              exsqs::ByteReader br(blob[static_cast<size_t>(act[j])]);
+              eng[static_cast<size_t>(dst)].receive_migrants(exsqs::get_individuals(br));
+            }
+          }
+          for (const auto& pr : sent)
+            eng[static_cast<size_t>(pr.first)].note_emigrants(pr.second);
+        }
+      }
     }
 
     // ---- gather island results to rank 0; write pooled outputs [D8] ----
