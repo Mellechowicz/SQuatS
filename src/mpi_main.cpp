@@ -177,6 +177,21 @@ int main(int argc, char** argv) {
         if (ep) std::rethrow_exception(ep);
     }
 
+    const auto save_state_root = [&]() {
+      exsqs::ByteWriter lw;
+      for (int i : owned) {
+        exsqs::ByteWriter b;
+        eng[static_cast<size_t>(i)].serialize(b);
+        lw.u32(static_cast<uint32_t>(i));
+        lw.str(b.data());
+      }
+      const std::string all = gather_bytes_root(lw.data(), rank);
+      if (rank == 0)
+        exsqs::save_run_state_blobs(cfg.outdir + "/state.ckpt", cfg,
+                                    parse_records(all, cfg.islands));
+      MPI_Barrier(MPI_COMM_WORLD);
+    };
+
     // ---- lockstep rounds (SPEC 8.1/8.2) ----
     while (true) {
       std::vector<int> flags(static_cast<size_t>(cfg.islands), 0);
@@ -236,7 +251,9 @@ int main(int argc, char** argv) {
             eng[static_cast<size_t>(pr.first)].note_emigrants(pr.second);
         }
       }
+      if (cfg.checkpoint_every > 0 && round % cfg.checkpoint_every == 0) save_state_root();
     }
+    save_state_root();  // final state: resubmission chains [A13]
 
     // ---- gather island results to rank 0; write pooled outputs [D8] ----
     exsqs::ByteWriter lw;
