@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(exsqs VERSION 1.2.0 LANGUAGES C CXX)
+project(exsqs VERSION 1.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,7 +45,8 @@ add_library(exsqs_core
   src/dedup.cpp
   src/testcells.cpp
   src/config.cpp
-  src/evolution.cpp)
+  src/evolution.cpp
+  src/serialize.cpp)
 target_include_directories(exsqs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(exsqs_core PRIVATE -Wall -Wextra)
 if(TARGET Spglib::symspg)
