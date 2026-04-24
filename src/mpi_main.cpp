@@ -33,7 +33,7 @@ namespace {
 
 void usage() {
   std::printf(
-      "usage: mpirun -n R exsqs_mpi <config.yaml> [--set k.p=v ...] [--out DIR]\n"
+      "usage: mpirun -n R exsqs_mpi <config.yaml> [--set k.p=v ...] [--out DIR] [--resume DIR]\n"
       "  Rank-distributed islands (SPEC 8.2); results are bit-identical to `exsqs`\n"
       "  for any rank count. exit codes: 0 success | 3 budget exhausted | 1 error\n");
 }
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  std::string path;
+  std::string path, resume_dir;
   std::vector<std::string> ovr;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
@@ -117,6 +117,8 @@ int main(int argc, char** argv) {
       ovr.push_back(argv[++i]);
     } else if (a == "--out" && i + 1 < argc) {
       ovr.push_back(std::string("output.dir=") + argv[++i]);
+    } else if (a == "--resume" && i + 1 < argc) {
+      resume_dir = argv[++i];
     } else if (path.empty()) {
       path = a;
     } else {
@@ -161,7 +163,11 @@ int main(int argc, char** argv) {
     }
 
     int round = 0;
-    {
+    if (!resume_dir.empty()) {
+      // every rank reads the shared state file and keeps its owned islands
+      round = exsqs::load_run_state(resume_dir + "/state.ckpt", cfg, eng);
+      if (rank == 0) std::printf("resumed at round %d from %s/state.ckpt\n", round, resume_dir.c_str());
+    } else {
       std::vector<std::exception_ptr> errs(owned.size());
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(outer) schedule(static, 1)
