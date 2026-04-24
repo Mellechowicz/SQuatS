@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.2 (2026-03-31) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.3 (2026-04-28) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -210,6 +210,28 @@ inherited from the paper's scale, were infeasible and are replaced by floor-rela
   results** ([A14]) — verified bitwise for 1 vs 4 threads (T-P1) and against v1.1 sequential run
   artifacts.
 
+### 8.2 Checkpoint/restart and distributed execution (v1.3)
+
+**State files.** The driver writes `state.ckpt` (atomic tmp+rename) into the output directory at
+every `checkpoint_every` round and at run end. The file carries a format version and a
+*trajectory signature* — every config field that influences the trajectory (system, composition,
+zones, error model, evolution dynamics, seed, islands, migration). `--resume DIR` restores the
+complete engine state (population, archive, pool, log, counters) bit-exactly; a signature
+mismatch is refused, so only budget caps (`max_generations`, `max_wall_s`) and output/threading
+fields may change between segments. Islands stopped on a raisable cap re-arm on resume; `e_tol`
+success and `stagnation` stops are terminal. Chained segments are bit-identical to an
+uninterrupted run (T-K1), including across migration rounds.
+
+**MPI ranks (`exsqs_mpi`).** Islands are distributed round-robin (island *i* → rank *i* mod *R*)
+and advance in the same lockstep rounds; activity flags and §8.1 migration payloads travel as
+little-endian byte records over collectives, and rank 0 writes the identical `state.ckpt` and
+pooled outputs. Because trajectories are island-keyed [A14] and the exchange protocol is
+deterministic, **results are bit-identical to the single-process driver for any rank count**
+(T-MPI1); serial and MPI state files are interchangeable, so a run may move between 1 and N
+nodes across segments. Homogeneous little-endian clusters are assumed (guarded at every
+file/wire boundary). Wall-capped stops remain wall-clock-dependent and are excluded from
+bit-exactness claims, as in v1.2.
+
 ## 9. Composition handling
 
 - `N_t = round(x_t·N)` by largest-remainder so `Σ N_t = N`; achieved `x̃_t` logged and used as the
@@ -280,6 +302,9 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-P0 | unit (v1.2) | symmetry/displacement/correlation pipeline under 4 concurrent threads vs serial | identical |
 | T-P1 | reproducibility (v1.2) | `omp_threads` 1 vs 4, islands+migration and single-island paths | bit-exact |
 | T-M1 | integration (v1.2) | ring migration exchanges pool-best; dedup drops only; deterministic rerun | pass |
+| T-K1 | reproducibility (v1.3) | budget-stop → `--resume` chain vs uninterrupted run (migration boundary crossed) | bit-exact |
+| T-K2 | unit (v1.3) | resume refuses trajectory-signature mismatch; raising budget caps allowed | pass |
+| T-MPI1 | reproducibility (v1.3) | serial vs `mpirun -n 1` vs `-n 3`: outputs, logs, migration ledger | bit-exact |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -319,6 +344,18 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.3 (2026-04-28)** — step-4 HPC layer:
+  - §8.2: checkpoint/restart (signature-guarded `state.ckpt`, atomic writes, raisable budget
+    caps, bit-exact chains) and the rank-distributed `exsqs_mpi` driver (round-robin islands,
+    collective-based §8.1 migration, rank-invariant to the bit; T-B1's "island scaling over
+    ranks" is now runnable). Serial and MPI state files are interchangeable.
+  - New binary encoding (`serialize.hpp`): little-endian, IEEE-754 bit patterns; homogeneous
+    little-endian clusters assumed and guarded. Engine exposed via `EngineHandle`
+    (island_engine.hpp) for external drivers and tests.
+  - CLI `--resume DIR`; SLURM templates (`scripts/slurm/`) and a resubmission-chain pattern
+    (`scripts/chain_resume.sh`) keyed to the 0/3 exit-code contract.
+  - New tests T-K1/T-K2/T-MPI1. Mid-run `checkpoint.json` snapshots are not written under MPI
+    (state.ckpt supersedes them there); per-generation stdout rows come from rank 0's islands.
 - **v1.2 (2026-03-31)** — step-3 parallel layer:
   - §8.1: lockstep islands, synchronous ring migration (defined; previously only schema keys), and
     round-based generations with provisional archive inserts; bit-equivalent to v1.1 for the

@@ -1,5 +1,8 @@
 #include "exsqs/evolution.hpp"
 
+#include "exsqs/island_engine.hpp"
+#include "exsqs/serialize.hpp"
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -8,8 +11,10 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <map>
@@ -462,8 +467,6 @@ class IslandEngine {
       elite[static_cast<size_t>(order[static_cast<size_t>(e)])] = 1;
     const double e_min = pop_[static_cast<size_t>(order[0])].e_obj;
     double beta = cfg_.beta;
-    if (cfg_.metropolis && beta > 0 && cfg_.beta_schedule == 1)
-      beta *= std::pow(cfg_.beta_growth, static_cast<double>(gen_));  // [A11] geometric, v1.5
     if (cfg_.metropolis && beta <= 0) {  // auto: median structure survives 50% [A11]
       std::vector<double> diffs;
       diffs.reserve(pop_.size());
@@ -647,6 +650,43 @@ class IslandEngine {
   }
 
 
+  // ---- v1.3 checkpoint/restart ----
+  void serialize(ByteWriter& w) const {
+    w.i32(island_);
+    w.i32(gen_);
+    w.i32(stall_gens_);
+    w.u8(done_ ? 1 : 0);
+    put_island_result(w, res_);
+    put_individuals(w, pop_);
+    std::vector<std::string> keys(archive_.begin(), archive_.end());
+    std::sort(keys.begin(), keys.end());  // deterministic state files
+    w.u64(static_cast<uint64_t>(keys.size()));
+    for (const auto& k : keys) w.str(k);
+  }
+
+  void deserialize(ByteReader& r) {
+    const int isl = r.i32();
+    if (isl != island_) throw std::runtime_error("state: island id mismatch in blob");
+    gen_ = r.i32();
+    stall_gens_ = r.i32();
+    done_ = r.u8() != 0;
+    res_ = get_island_result(r);
+    pop_ = get_individuals(r);
+    archive_.clear();
+    const uint64_t na = r.u64();
+    archive_.reserve(static_cast<size_t>(na) * 2);
+    for (uint64_t i = 0; i < na; ++i) archive_.insert(r.str());
+  }
+
+  bool reopen_for_resume() {
+    if (done_ &&
+        (res_.stop_reason == "max_generations" || res_.stop_reason == "wall_time")) {
+      done_ = false;  // raisable caps re-arm; e_tol/stagnation stay terminal
+      res_.stop_reason.clear();
+    }
+    return !done_;
+  }
+
  private:
   void finish(const char* why) {
     res_.stop_reason = why;
@@ -771,9 +811,109 @@ class IslandEngine {
 
 }  // namespace
 
+// ---------------------------------------------------------------------------
+// EngineHandle (v1.3): thin public pimpl over IslandEngine for external
+// drivers (exsqs_mpi, tests) and checkpoint/restart.
+// ---------------------------------------------------------------------------
+struct EngineHandle::Impl {
+  IslandEngine e;
+  Impl(const RunConfig& cfg, const RunContext& ctx, int island, CheckpointFn cb)
+      : e(cfg, ctx, island, Clock::now(), std::move(cb)) {}
+};
+
+EngineHandle::EngineHandle(const RunConfig& cfg, const RunContext& ctx, int island,
+                           CheckpointFn cb)
+    : impl_(new Impl(cfg, ctx, island, std::move(cb))) {}
+EngineHandle::EngineHandle(EngineHandle&&) noexcept = default;
+EngineHandle& EngineHandle::operator=(EngineHandle&&) noexcept = default;
+EngineHandle::~EngineHandle() = default;
+void EngineHandle::set_inner_threads(int n) { impl_->e.set_inner_threads(n); }
+void EngineHandle::seed_generation0() { impl_->e.seed_generation0(); }
+void EngineHandle::advance() { impl_->e.advance(); }
+bool EngineHandle::done() const { return impl_->e.done(); }
+int EngineHandle::generation() const { return impl_->e.generation(); }
+int EngineHandle::island() const { return impl_->e.island(); }
+std::vector<Individual> EngineHandle::emigrants(int k) const { return impl_->e.emigrants(k); }
+void EngineHandle::receive_migrants(const std::vector<Individual>& in) {
+  impl_->e.receive_migrants(in);
+}
+void EngineHandle::note_emigrants(int n) { impl_->e.note_emigrants(n); }
+IslandResult EngineHandle::take_result() { return impl_->e.take_result(); }
+void EngineHandle::serialize(ByteWriter& w) const { impl_->e.serialize(w); }
+void EngineHandle::deserialize(ByteReader& r) { impl_->e.deserialize(r); }
+bool EngineHandle::reopen_for_resume() { return impl_->e.reopen_for_resume(); }
+
+void save_run_state_blobs(const std::string& path, const RunConfig& cfg,
+                          const std::vector<std::string>& blobs_by_island) {
+  ensure_little_endian();
+  ByteWriter w;
+  w.raw("EXSQSTAT", 8);
+  w.u32(1);  // format version
+  w.str(trajectory_signature(cfg));
+  w.u32(static_cast<uint32_t>(blobs_by_island.size()));
+  for (size_t i = 0; i < blobs_by_island.size(); ++i) {
+    w.u32(static_cast<uint32_t>(i));
+    w.str(blobs_by_island[i]);
+  }
+  namespace fs = std::filesystem;
+  const fs::path fp(path);
+  if (fp.has_parent_path()) fs::create_directories(fp.parent_path());
+  const std::string tmp = path + ".tmp";
+  {
+    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    if (!f) throw std::runtime_error("state: cannot write " + tmp);
+    f.write(w.data().data(), static_cast<std::streamsize>(w.data().size()));
+  }
+  fs::rename(tmp, fp);
+}
+
+void save_run_state(const std::string& path, const RunConfig& cfg,
+                    const std::vector<EngineHandle>& engines) {
+  std::vector<std::string> blobs(engines.size());
+  for (const auto& e : engines) {
+    ByteWriter b;
+    e.serialize(b);
+    blobs[static_cast<size_t>(e.island())] = b.data();
+  }
+  save_run_state_blobs(path, cfg, blobs);
+}
+
+int load_run_state(const std::string& path, const RunConfig& cfg,
+                   std::vector<EngineHandle>& engines) {
+  ensure_little_endian();
+  std::ifstream f(path, std::ios::binary);
+  if (!f) throw std::runtime_error("state: cannot open " + path);
+  const std::string buf((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  ByteReader r(buf);
+  char magic[8];
+  r.raw_read(magic, 8);
+  if (std::memcmp(magic, "EXSQSTAT", 8) != 0) throw std::runtime_error("state: bad magic");
+  if (r.u32() != 1) throw std::runtime_error("state: unsupported format version");
+  if (r.str() != trajectory_signature(cfg))
+    throw std::runtime_error(
+        "state: trajectory signature mismatch -- the config differs from the checkpointed run "
+        "in a trajectory-relevant field (only budget caps may change on resume)");
+  const uint32_t nisl = r.u32();
+  if (nisl != engines.size() || static_cast<int>(nisl) != cfg.islands)
+    throw std::runtime_error("state: island count mismatch");
+  std::vector<char> seen(nisl, 0);
+  for (uint32_t k = 0; k < nisl; ++k) {
+    const uint32_t id = r.u32();
+    const std::string blob = r.str();
+    if (id >= nisl || seen[id]) throw std::runtime_error("state: duplicate/invalid island record");
+    ByteReader br(blob);
+    engines[id].deserialize(br);
+    seen[id] = 1;
+  }
+  int round = 0;
+  for (auto& e : engines)
+    if (e.reopen_for_resume()) round = std::max(round, e.generation());
+  return round;
+}
+
 IslandResult evolve_island(const RunConfig& cfg, const RunContext& ctx, int island,
                            const CheckpointFn& cb) {
-  IslandEngine e(cfg, ctx, island, Clock::now(), cb);
+  EngineHandle e(cfg, ctx, island, cb);
   e.set_inner_threads(total_threads(cfg));
   e.seed_generation0();
   while (!e.done()) e.advance();
@@ -809,12 +949,12 @@ RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&&
   return out;
 }
 
-RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb) {
+RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb,
+                        const std::string& resume_from, const std::string& state_dir) {
   const auto t0 = Clock::now();
-  std::vector<std::unique_ptr<IslandEngine>> eng;
+  std::vector<EngineHandle> eng;
   eng.reserve(static_cast<size_t>(cfg.islands));
-  for (int i = 0; i < cfg.islands; ++i)
-    eng.emplace_back(new IslandEngine(cfg, ctx, i, t0, cb));
+  for (int i = 0; i < cfg.islands; ++i) eng.emplace_back(cfg, ctx, i, cb);
 
   // Thread budget (v1.2): outer over islands, remainder inside each island's
   // evaluation rounds. Thread counts affect wall time only, never results.
@@ -824,16 +964,19 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
 #ifdef _OPENMP
   if (outer > 1 && inner > 1) omp_set_max_active_levels(2);
 #endif
-  for (auto& e : eng) e->set_inner_threads(inner);
+  for (auto& e : eng) e.set_inner_threads(inner);
 
-  {
+  int round = 0;
+  if (!resume_from.empty()) {
+    round = load_run_state(resume_from, cfg, eng);  // v1.3: bit-exact resume
+  } else {
     std::vector<std::exception_ptr> errs(eng.size());
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(outer) schedule(static, 1)
 #endif
     for (int i = 0; i < static_cast<int>(eng.size()); ++i) {
       try {
-        eng[static_cast<size_t>(i)]->seed_generation0();
+        eng[static_cast<size_t>(i)].seed_generation0();
       } catch (...) {
         errs[static_cast<size_t>(i)] = std::current_exception();
       }
@@ -842,12 +985,15 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
       if (ep) std::rethrow_exception(ep);
   }
 
+  const auto save_state = [&]() {
+    if (!state_dir.empty()) save_run_state(state_dir + "/state.ckpt", cfg, eng);
+  };
+
   // Lockstep generation rounds (v1.2); synchronous ring migration (SPEC 8.1).
-  int round = 0;
   while (true) {
     bool any = false;
     for (auto& e : eng)
-      if (!e->done()) any = true;
+      if (!e.done()) any = true;
     if (!any) break;
     std::vector<std::exception_ptr> errs(eng.size());
     {
@@ -856,7 +1002,7 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
 #endif
       for (int i = 0; i < static_cast<int>(eng.size()); ++i) {
         try {
-          eng[static_cast<size_t>(i)]->advance();
+          eng[static_cast<size_t>(i)].advance();
         } catch (...) {
           errs[static_cast<size_t>(i)] = std::current_exception();
         }
@@ -869,22 +1015,25 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
         round % cfg.migration_every == 0) {
       std::vector<int> act;
       for (int i = 0; i < cfg.islands; ++i)
-        if (!eng[static_cast<size_t>(i)]->done()) act.push_back(i);
+        if (!eng[static_cast<size_t>(i)].done()) act.push_back(i);
       if (act.size() >= 2) {
         std::vector<std::vector<Individual>> sends;
         sends.reserve(act.size());
-        for (int i : act) sends.push_back(eng[static_cast<size_t>(i)]->emigrants(cfg.migrants));
+        for (int i : act) sends.push_back(eng[static_cast<size_t>(i)].emigrants(cfg.migrants));
         for (size_t j = 0; j < act.size(); ++j) {
-          eng[static_cast<size_t>(act[(j + 1) % act.size()])]->receive_migrants(sends[j]);
-          eng[static_cast<size_t>(act[j])]->note_emigrants(static_cast<int>(sends[j].size()));
+          eng[static_cast<size_t>(act[(j + 1) % act.size()])].receive_migrants(sends[j]);
+          eng[static_cast<size_t>(act[j])].note_emigrants(static_cast<int>(sends[j].size()));
         }
       }
     }
+    if (!state_dir.empty() && cfg.checkpoint_every > 0 && round % cfg.checkpoint_every == 0)
+      save_state();
   }
+  save_state();  // final state enables budget-raising resume chains [A13]
 
   std::vector<IslandResult> rs;
   rs.reserve(eng.size());
-  for (auto& e : eng) rs.push_back(e->take_result());
+  for (auto& e : eng) rs.push_back(e.take_result());
   RunOutput out = merge_island_results(cfg, std::move(rs));
   out.wall_s = seconds_since(t0);
   return out;
@@ -936,7 +1085,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
     return std::string(nb);
   };
   j << "{\n";
-  j << "  \"exsqs_version\": \"1.2.0\",\n";
+  j << "  \"exsqs_version\": \"1.3.0\",\n";
   j << "  \"checkpoint\": " << (checkpoint ? "true" : "false") << ",\n";
   j << "  \"success\": " << (out.success ? "true" : "false") << ",\n";
   j << "  \"islands\": " << out.islands << ",\n";
@@ -1001,8 +1150,8 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "}\n";
 }
 
-int run_from_config(const RunConfig& cfg) {
-  std::printf("exsqs 1.2.0 | spglib %s\n", spglib_version().c_str());
+int run_from_config(const RunConfig& cfg, const std::string& resume_from) {
+  std::printf("exsqs 1.3.0 | spglib %s\n", spglib_version().c_str());
   const RunContext ctx = RunContext::build(cfg);
   const int N = ctx.geom.natoms();
   std::printf("system: %d sites |", N);
@@ -1038,7 +1187,9 @@ int run_from_config(const RunConfig& cfg) {
     write_outputs(cfg, ctx, partial, true);
   };
 
-  RunOutput out = run_evolution(cfg, ctx, cb);
+  if (!resume_from.empty())
+    std::printf("resuming from %s\n", resume_from.c_str());
+  RunOutput out = run_evolution(cfg, ctx, cb, resume_from, cfg.outdir);
   write_outputs(cfg, ctx, out, false);
 
   std::printf("\n== %s | evals=%lld | wall=%.1fs ==\n",
