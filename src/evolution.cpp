@@ -949,7 +949,8 @@ RunOutput merge_island_results(const RunConfig& cfg, std::vector<IslandResult>&&
   return out;
 }
 
-RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb) {
+RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const CheckpointFn& cb,
+                        const std::string& resume_from, const std::string& state_dir) {
   const auto t0 = Clock::now();
   std::vector<EngineHandle> eng;
   eng.reserve(static_cast<size_t>(cfg.islands));
@@ -965,7 +966,10 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
 #endif
   for (auto& e : eng) e.set_inner_threads(inner);
 
-  {
+  int round = 0;
+  if (!resume_from.empty()) {
+    round = load_run_state(resume_from, cfg, eng);  // v1.3: bit-exact resume
+  } else {
     std::vector<std::exception_ptr> errs(eng.size());
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(outer) schedule(static, 1)
@@ -981,8 +985,11 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
       if (ep) std::rethrow_exception(ep);
   }
 
+  const auto save_state = [&]() {
+    if (!state_dir.empty()) save_run_state(state_dir + "/state.ckpt", cfg, eng);
+  };
+
   // Lockstep generation rounds (v1.2); synchronous ring migration (SPEC 8.1).
-  int round = 0;
   while (true) {
     bool any = false;
     for (auto& e : eng)
@@ -1019,7 +1026,10 @@ RunOutput run_evolution(const RunConfig& cfg, const RunContext& ctx, const Check
         }
       }
     }
+    if (!state_dir.empty() && cfg.checkpoint_every > 0 && round % cfg.checkpoint_every == 0)
+      save_state();
   }
+  save_state();  // final state enables budget-raising resume chains [A13]
 
   std::vector<IslandResult> rs;
   rs.reserve(eng.size());
@@ -1140,7 +1150,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "}\n";
 }
 
-int run_from_config(const RunConfig& cfg) {
+int run_from_config(const RunConfig& cfg, const std::string& resume_from) {
   std::printf("exsqs 1.3.0 | spglib %s\n", spglib_version().c_str());
   const RunContext ctx = RunContext::build(cfg);
   const int N = ctx.geom.natoms();
@@ -1177,7 +1187,9 @@ int run_from_config(const RunConfig& cfg) {
     write_outputs(cfg, ctx, partial, true);
   };
 
-  RunOutput out = run_evolution(cfg, ctx, cb);
+  if (!resume_from.empty())
+    std::printf("resuming from %s\n", resume_from.c_str());
+  RunOutput out = run_evolution(cfg, ctx, cb, resume_from, cfg.outdir);
   write_outputs(cfg, ctx, out, false);
 
   std::printf("\n== %s | evals=%lld | wall=%.1fs ==\n",

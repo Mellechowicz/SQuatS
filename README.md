@@ -33,4 +33,13 @@ generations execute as parallel rounds under OpenMP (`parallel.omp_threads`). Th
 change results: runs are bit-identical for 1 vs N threads and match 1.1.0 sequential artifacts
 exactly. Record single-node scaling with `./build/exsqs_bench_scaling`.
 
+## v1.3 notes
+
+Checkpoint/restart: every run writes `state.ckpt` (at `checkpoint_every` rounds and at exit);
+`--resume DIR` continues bit-exactly - only budget caps may change (signature-guarded), so
+wall-limited segments chain into one deterministic trajectory (`scripts/chain_resume.sh`).
+Multi-node: `mpirun -n R ./build/exsqs_mpi ...` distributes islands over ranks with results
+bit-identical to the serial driver for any R; serial and MPI segments are interchangeable.
+Wire/state format assumes little-endian hosts.
+
 License: MIT (see LICENSE).
