@@ -55,6 +55,7 @@ else()
   target_link_libraries(exsqs_core PUBLIC symspg)
 endif()
 find_package(OpenMP)
+find_package(MPI COMPONENTS CXX)  # v1.3: optional exsqs_mpi driver
 if(OpenMP_CXX_FOUND)
   target_link_libraries(exsqs_core PUBLIC OpenMP::OpenMP_CXX)
 endif()
@@ -68,6 +69,17 @@ endif()
 add_executable(exsqs src/main.cpp)
 target_link_libraries(exsqs PRIVATE exsqs_core)
 target_compile_options(exsqs PRIVATE -Wall -Wextra)
+
+if(MPI_CXX_FOUND)
+  add_executable(exsqs_mpi src/mpi_main.cpp)
+  target_link_libraries(exsqs_mpi PRIVATE exsqs_core MPI::MPI_CXX)
+  target_compile_options(exsqs_mpi PRIVATE -Wall -Wextra)
+  add_test(NAME exsqs_mpi_invariance
+           COMMAND ${CMAKE_SOURCE_DIR}/tools/test_mpi_invariance.sh
+                   $<TARGET_FILE:exsqs> $<TARGET_FILE:exsqs_mpi>
+                   ${CMAKE_SOURCE_DIR}/configs/smoke_sc27.yaml
+                   ${MPIEXEC_EXECUTABLE})
+endif()
 
 add_executable(exsqs_bench tools/bench.cpp)
 target_link_libraries(exsqs_bench PRIVATE exsqs_core)
