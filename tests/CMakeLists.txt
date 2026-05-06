@@ -8,7 +8,8 @@ add_executable(exsqs_tests
   test_evolution.cpp
   test_e2e.cpp
   test_parallel.cpp
-  test_checkpoint.cpp)
+  test_checkpoint.cpp
+  test_ternary.cpp)
 target_link_libraries(exsqs_tests PRIVATE exsqs_core Catch2::Catch2WithMain)
 target_compile_definitions(exsqs_tests PRIVATE
   EXSQS_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data")
