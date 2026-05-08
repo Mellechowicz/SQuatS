@@ -144,3 +144,17 @@ TEST_CASE("K=3 engine: composition preserved, non-P1, deterministic", "[evolutio
     REQUIRE(a.outputs[i].e_pure == b.outputs[i].e_pure);
   }
 }
+
+TEST_CASE("T-E3: ternary bcc W64Mo32Cr32 (full_pairs) reaches E_pure <= 1.2e-1, C-class output",
+          "[e2e][ternary]") {
+  const RunConfig cfg = tern_bcc_cfg();
+  const RunContext ctx = RunContext::build(cfg);
+  REQUIRE(ctx.e_floor == 0.0);
+  const RunOutput out = run_evolution(cfg, ctx);
+  REQUIRE(out.outputs.size() >= static_cast<size_t>(cfg.outputs));
+  const Individual& best = out.outputs[0];
+  REQUIRE(best.sg > 1);
+  REQUIRE(best.e_pure <= 1.2e-1);  // seed-pinned: 1.1125e-1 observed at gen 20
+  REQUIRE(best.D < 6 * ctx.geom.natoms());
+  REQUIRE(species_counts(best.sigma, 3) == cfg.counts);
+}
