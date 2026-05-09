@@ -108,7 +108,9 @@ E_floor = Σ_n A_n Σ_t dist(x̃_t·P_t(n), ℤ) / P_t(n)     # diagonal; full_p
 
 Reference system W₉₀Cr₃₈ / bcc 4×4×4 / 7 shells / A_n = 1/n: `E_floor = 3.246e-3`. The engine
 computes and logs E_floor at startup and warns when the requested `e_tol` lies below it
-(infeasible; the run then terminates on caps only).
+(infeasible; the run then terminates on caps only). For *commensurate* compositions every
+`x̃_t·P_t(n)` can be integral and `E_floor = 0` exactly (e.g. W₆₄Mo₃₂Cr₃₂ on bcc 4×4×4, v1.4):
+the bound is then uninformative and `e_tol: auto` degenerates to 0 — set a numeric tolerance.
 
 **Scale caveat (v1.1):** the paper's reported absolute errors (Fig. 1: 𝔈 = 2.01–2.92·10⁻⁴ for this
 very system) lie *below* this provable bound, so the paper's reported scalar carries an unstated
