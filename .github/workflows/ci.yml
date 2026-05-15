@@ -1,0 +1,36 @@
+# EXSQS CI (v1.4): build + fast verification on every push/PR; the slow
+# W-system integration suite runs as a separate job. The python T-V1
+# cross-validation needs pymatgen and is left to the full local runner
+# (tools/run_all_tests.sh).
+name: ci
+on: [push, pull_request]
+
+jobs:
+  fast:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ openmpi-bin libopenmpi-dev
+      - name: configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: build
+        run: cmake --build build -j"$(nproc)"
+      - name: fast suite (steps 1-5, no e2e)
+        run: ./build/tests/exsqs_tests "~[e2e]"
+      - name: T-MPI1 rank invariance
+        run: ./tools/test_mpi_invariance.sh ./build/exsqs ./build/exsqs_mpi configs/smoke_sc27.yaml mpirun
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - name: configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: build
+        run: cmake --build build -j"$(nproc)"
+      - name: integration suite (T-E1/T-E2/T-E3)
+        run: ./build/tests/exsqs_tests "[e2e]"
