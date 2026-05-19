@@ -77,7 +77,7 @@ those long campaigns.
 | check | system | result |
 |---|---|---|
 | T-K1 (test) | sc27, 2 islands, migration every 3, split 5/12 | bit-exact vs straight run |
-| T-K2 (test) | sc27 | seed change refused ("signature"); cap raise resumes |
+| T-K2 (test) | sc27 | seed change refused ("signature"); a cap raise resumes the run |
 | T-MPI1 (ctest) | sc27, 3 islands | serial ≡ 1 rank ≡ 3 ranks (outputs, logs, ledger) |
 | chain demo | W₉₀Cr₃₈, 2 islands, β=3000, 30 gens split 15+15 | bit-exact incl. ledger `[2,2]`; best 3.91× floor |
 | MPI demo | W₉₀Cr₃₈, 3 islands, 6 gens | serial ≡ 3 ranks (best 1.820570e-2) |
