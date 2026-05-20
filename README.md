@@ -42,4 +42,18 @@ Multi-node: `mpirun -n R ./build/exsqs_mpi ...` distributes islands over ranks w
 bit-identical to the serial driver for any R; serial and MPI segments are interchangeable.
 Wire/state format assumes little-endian hosts.
 
+## v1.4 notes and testing
+
+K >= 3 is validated end-to-end (`configs/w50mo25cr25_4x4x4.yaml`; `error.mode: auto` resolves to
+full_pairs [A16]); note that commensurate compositions can have E_floor = 0 exactly -- use a
+numeric `e_tol` there. Run the complete verification matrix with:
+
+    bash tools/run_all_tests.sh          # everything
+    SKIP_E2E=1 bash tools/run_all_tests.sh   # fast gates only
+
+Individual suites: `./build/tests/exsqs_tests "~[e2e]"` (fast), `"[e2e]"` (integration),
+`tools/test_mpi_invariance.sh` (T-MPI1), `tools/py/validate.py <rundir>` (T-V1),
+`./build/exsqs_bench` and `./build/exsqs_bench_scaling` (T-B1, recorded). CI stub in
+`.github/workflows/ci.yml`.
+
 License: MIT (see LICENSE).

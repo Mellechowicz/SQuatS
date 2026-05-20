@@ -1,0 +1,26 @@
+# Ternary reference: W50Mo25Cr25 on bcc 4x4x4 (-> W64Mo32Cr32, 128 sites).
+# K=3 => error.mode auto resolves to full_pairs [A16]. Values otherwise mirror
+# the frozen SPEC section-11 defaults.
+lattice:    {type: bcc, a: 3.165}
+supercell:  {diag: [4, 4, 4]}
+composition: {W: 0.50, Mo: 0.25, Cr: 0.25}
+zones:      {n_shells: 7, shell_tol: 1.0e-3}
+error:
+  weights:  {form: inv_n}
+  mode:     auto            # full_pairs for K>=3 [A16]
+  gamma:    1.0             # E_obj = E_pure * D^gamma [D3]
+evolution:
+  population: 200
+  outputs: 10
+  e_tol: auto            # 3.0 x E_floor (SPEC 4.1)
+  max_generations: 5000
+  survival: {mode: ratio}
+  elitism_best: 1
+  p1_elite_quota: 0
+  mutation: {swaps: 1, symmetry_preserving: true, retry_budget: 100}
+  seeding:  {mode: mixed, sg_pool: auto}
+symmetry:   {symprec: 1.0e-5, filter: {policy: reject_p1}}
+displacements: {convention: phonopy_default}
+parallel:   {islands: 1, omp_threads: auto, migration_every: 50, migrants: 2}
+rng:        {seed: 42}
+output:     {dir: ./runs/w50mo25cr25, formats: [poscar], checkpoint_every: 100, log_level: info}

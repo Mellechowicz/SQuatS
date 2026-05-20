@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.3 (2026-04-28) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.4 (2026-05-19) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -108,7 +108,9 @@ E_floor = Σ_n A_n Σ_t dist(x̃_t·P_t(n), ℤ) / P_t(n)     # diagonal; full_p
 
 Reference system W₉₀Cr₃₈ / bcc 4×4×4 / 7 shells / A_n = 1/n: `E_floor = 3.246e-3`. The engine
 computes and logs E_floor at startup and warns when the requested `e_tol` lies below it
-(infeasible; the run then terminates on caps only).
+(infeasible; the run then terminates on caps only). For *commensurate* compositions every
+`x̃_t·P_t(n)` can be integral and `E_floor = 0` exactly (e.g. W₆₄Mo₃₂Cr₃₂ on bcc 4×4×4, v1.4):
+the bound is then uninformative and `e_tol: auto` degenerates to 0 — set a numeric tolerance.
 
 **Scale caveat (v1.1):** the paper's reported absolute errors (Fig. 1: 𝔈 = 2.01–2.92·10⁻⁴ for this
 very system) lie *below* this provable bound, so the paper's reported scalar carries an unstated
@@ -305,6 +307,7 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-K1 | reproducibility (v1.3) | budget-stop → `--resume` chain vs uninterrupted run (migration boundary crossed) | bit-exact |
 | T-K2 | unit (v1.3) | resume refuses trajectory-signature mismatch; raising budget caps allowed | pass |
 | T-MPI1 | reproducibility (v1.3) | serial vs `mpirun -n 1` vs `-n 3`: outputs, logs, migration ledger | bit-exact |
+| T-E3 | integration (v1.4) | ternary bcc W₆₄Mo₃₂Cr₃₂ (`full_pairs` [A16]): `E_pure ≤ 1.2e-1`, non-P1, composition preserved | pass |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -344,6 +347,22 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.4 (2026-05-19)** — step-5 validation + release:
+  - **K ≥ 3 validated end-to-end**: [A16] `mode: auto → full_pairs` exercised; the §4.1 floor is
+    K-general (K=2's exact `full = 2×diag` identity does not extend); constructive seeding, orbit
+    mutation and the canonical dedup are species-count-agnostic; T-V1 reproduces the K=3
+    full-pairs error at |diff| = 0. New reference config `w50mo25cr25_4x4x4.yaml` and tests
+    (`[ternary]`, incl. T-E3).
+  - §4.1 note: commensurate compositions give `E_floor = 0` exactly (dyadic x on bcc 4×4×4);
+    use a numeric `e_tol` there.
+  - Campaigns recorded (single-core container scale): binary flagship (6 islands + migration,
+    β = 3000) reconfirms 2.50×E_floor with rc = 0 in 102 s / 14.8k evals; the β = 800 + migration
+    resume chain is stagnation-terminated near generation 50 at 3.61× — exploitation regimes are
+    exhaustion-limited by design, so the genuine long-budget frontier belongs to the
+    non-exhausting survival modes on multi-core hardware. Ternary campaign best:
+    9.55e-2 (P2) at 25 generations.
+  - Release: unified verification runner `tools/run_all_tests.sh` (steps 1–5 matrix), CI stub
+    (`.github/workflows/ci.yml`), version 1.4.0.
 - **v1.3 (2026-04-28)** — step-4 HPC layer:
   - §8.2: checkpoint/restart (signature-guarded `state.ckpt`, atomic writes, raisable budget
     caps, bit-exact chains) and the rank-distributed `exsqs_mpi` driver (round-robin islands,
