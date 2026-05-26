@@ -90,4 +90,20 @@ std::vector<int> sigma_on_geometry(const RunConfig& cfg, const RunContext& ctx,
   return sigma;
 }
 
+ScoreResult score_structure(const RunConfig& cfg, const RunContext& ctx, const Structure& s) {
+  const std::vector<int> sigma = sigma_on_geometry(cfg, ctx, s);
+  const Structure dec = decorate(ctx.geom, sigma, cfg.species);
+  ScoreResult r;
+  const SymmetryInfo info = get_symmetry(dec, cfg.symprec);
+  r.sg = info.sg_number;
+  r.sg_symbol = info.sg_symbol;
+  r.pg_order = pointgroup_order(info);
+  r.D = displacement_count(dec, info, cfg.symprec);
+  const CorrData cd = count_pairs(dec, ctx.zones);
+  r.e_pure = cfg.full_pairs ? e_pure_full(cd, cfg.x_achieved, ctx.weights)
+                            : e_pure_diagonal(cd, cfg.x_achieved, ctx.weights);
+  r.e_obj = r.e_pure * std::pow(static_cast<double>(r.D), cfg.gamma);
+  return r;
+}
+
 }  // namespace exsqs
