@@ -106,4 +106,40 @@ ScoreResult score_structure(const RunConfig& cfg, const RunContext& ctx, const S
   return r;
 }
 
+int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
+                  const std::string& json_path) {
+  const RunContext ctx = RunContext::build(cfg);
+  const int Dp1 = 6 * ctx.geom.natoms();
+  std::printf("exsqs score | %d sites | mode=%s gamma=%.3g | E_floor=%.6e%s\n",
+              ctx.geom.natoms(), cfg.full_pairs ? "full_pairs" : "diagonal", cfg.gamma,
+              ctx.e_floor, ctx.e_floor == 0.0 ? " (commensurate composition)" : "");
+  std::printf("%-32s %13s %9s %6s  %-12s %13s\n", "file", "E_pure", "E/floor", "D", "SG",
+              "E_obj");
+  std::vector<ScoreResult> rows;
+  bool all_ok = true;
+  for (const std::string& f : files) {
+    try {
+      const Structure s = read_poscar(f);
+      ScoreResult r = score_structure(cfg, ctx, s);
+      r.file = f;
+      std::string fl = "-";
+      if (ctx.e_floor > 0) {
+        char b[32];
+        std::snprintf(b, sizeof b, "%.2fx", r.e_pure / ctx.e_floor);
+        fl = b;
+      }
+      char sgb[24];
+      std::snprintf(sgb, sizeof sgb, "%d (%s)", r.sg, r.sg_symbol.c_str());
+      std::printf("%-32s %13.6e %9s %6d  %-12s %13.6e\n", f.c_str(), r.e_pure, fl.c_str(), r.D,
+                  sgb, r.e_obj);
+      rows.push_back(std::move(r));
+    } catch (const std::exception& e) {
+      std::fprintf(stderr, "%s: %s\n", f.c_str(), e.what());
+      all_ok = false;
+    }
+  }
+  (void)json_path;
+  return all_ok ? 0 : 1;
+}
+
 }  // namespace exsqs
