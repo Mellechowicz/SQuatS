@@ -20,12 +20,14 @@ static void usage() {
 
 int main(int argc, char** argv) {
   if (argc >= 2 && std::string(argv[1]) == "score") {
-    std::string cfgpath, json;  // json reserved
+    std::string cfgpath, json;
     std::vector<std::string> ovr2, files;
     for (int i = 2; i < argc; ++i) {
       const std::string a = argv[i];
       if (a == "--set" && i + 1 < argc) {
         ovr2.push_back(argv[++i]);
+      } else if (a == "--json" && i + 1 < argc) {
+        json = argv[++i];
       } else if (cfgpath.empty()) {
         cfgpath = a;
       } else {
