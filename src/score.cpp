@@ -138,7 +138,29 @@ int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
       all_ok = false;
     }
   }
-  (void)json_path;
+  if (!json_path.empty()) {
+    const auto num = [](double v) {
+      char b[40];
+      std::snprintf(b, sizeof b, "%.17g", v);
+      return std::string(b);
+    };
+    std::ofstream j(json_path, std::ios::trunc);
+    if (!j) {
+      std::fprintf(stderr, "score: cannot write %s\n", json_path.c_str());
+      return 1;
+    }
+    j << "{\n  \"e_floor\": " << num(ctx.e_floor) << ",\n  \"d_p1\": " << Dp1
+      << ",\n  \"scores\": [\n";
+    for (size_t i = 0; i < rows.size(); ++i) {
+      const ScoreResult& r = rows[i];
+      j << "    {\"file\": \"" << r.file << "\", \"e_pure\": " << num(r.e_pure)
+        << ", \"e_obj\": " << num(r.e_obj) << ", \"D\": " << r.D << ", \"sg\": " << r.sg
+        << ", \"sg_symbol\": \"" << r.sg_symbol << "\", \"pg_order\": " << r.pg_order << "}"
+        << (i + 1 < rows.size() ? "," : "") << "\n";
+    }
+    j << "  ]\n}\n";
+    std::printf("json written to %s\n", json_path.c_str());
+  }
   return all_ok ? 0 : 1;
 }
 
