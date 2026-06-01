@@ -58,3 +58,25 @@ TEST_CASE("T-X1: score_structure == engine records; input site order free", "[sc
   REQUIRE(r.D == B.D);
   REQUIRE(r.sg == B.sg);
 }
+
+TEST_CASE("score rejects mismatched lattice / species / composition", "[score]") {
+  const RunConfig cfg = sc_cfg();
+  const RunContext ctx = RunContext::build(cfg);
+  const std::vector<int> sig = composition_sigma(cfg);
+  const Structure s = decorate(ctx.geom, sig, cfg.species);
+  {
+    Structure bad = s;
+    bad.cell[0][0] += 0.01;
+    REQUIRE_THROWS_WITH(score_structure(cfg, ctx, bad), ContainsSubstring("lattice"));
+  }
+  {
+    Structure bad = s;
+    bad.species[0] = 1 - bad.species[0];  // breaks the [A5] counts
+    REQUIRE_THROWS_WITH(score_structure(cfg, ctx, bad), ContainsSubstring("composition"));
+  }
+  {
+    Structure bad = s;
+    bad.names = {"W", "Xx"};
+    REQUIRE_THROWS_WITH(score_structure(cfg, ctx, bad), ContainsSubstring("species"));
+  }
+}
