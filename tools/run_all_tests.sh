@@ -65,6 +65,9 @@ run_tags "S4  serializer + T-K1 + T-K2"               "[checkpoint]"
 # ---- Step 5: ternary K=3 (v1.4) ----
 run_tags "S5  K=3 config/floor/engine (fast)"         "[ternary]~[e2e]"
 
+# ---- Step 6: interoperability (v1.5) ----
+run_tags "S6  external-structure scoring (T-X1)"      "[score]"
+
 if [ "${SKIP_E2E:-0}" != "1" ]; then
   run_tags "S2/S5  integration T-E1/T-E2/T-E3 [e2e]"  "[e2e]"
 else
