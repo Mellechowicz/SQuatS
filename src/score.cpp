@@ -130,8 +130,9 @@ int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
       }
       char sgb[24];
       std::snprintf(sgb, sizeof sgb, "%d (%s)", r.sg, r.sg_symbol.c_str());
-      std::printf("%-32s %13.6e %9s %6d  %-12s %13.6e\n", f.c_str(), r.e_pure, fl.c_str(), r.D,
-                  sgb, r.e_obj);
+      std::printf("%-32s %13.6e %9s %6d  %-12s %13.6e\n",
+                  f.size() > 32 ? ("..." + f.substr(f.size() - 29)).c_str() : f.c_str(), r.e_pure,
+                  fl.c_str(), r.D, sgb, r.e_obj);
       rows.push_back(std::move(r));
     } catch (const std::exception& e) {
       std::fprintf(stderr, "%s: %s\n", f.c_str(), e.what());
