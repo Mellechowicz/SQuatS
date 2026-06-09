@@ -10,7 +10,8 @@ add_executable(exsqs_tests
   test_parallel.cpp
   test_checkpoint.cpp
   test_ternary.cpp
-  test_score.cpp)
+  test_score.cpp
+  test_schedule.cpp)
 target_link_libraries(exsqs_tests PRIVATE exsqs_core Catch2::Catch2WithMain)
 target_compile_definitions(exsqs_tests PRIVATE
   EXSQS_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data")
