@@ -467,6 +467,8 @@ class IslandEngine {
       elite[static_cast<size_t>(order[static_cast<size_t>(e)])] = 1;
     const double e_min = pop_[static_cast<size_t>(order[0])].e_obj;
     double beta = cfg_.beta;
+    if (cfg_.metropolis && beta > 0 && cfg_.beta_schedule == 1)
+      beta *= std::pow(cfg_.beta_growth, static_cast<double>(gen_));  // [A11] geometric, v1.5
     if (cfg_.metropolis && beta <= 0) {  // auto: median structure survives 50% [A11]
       std::vector<double> diffs;
       diffs.reserve(pop_.size());

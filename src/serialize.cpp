@@ -175,7 +175,7 @@ std::string trajectory_signature(const RunConfig& c) {
   w.f64(c.e_tol);
   w.u8(c.metropolis ? 1 : 0);
   w.f64(c.beta);
-  w.i32(c.beta_schedule);
+  w.i32(c.beta_schedule);  // v1.5 [A11]
   w.f64(c.beta_growth);
   w.i32(c.elitism_best);
   w.i32(c.p1_elite_quota);
