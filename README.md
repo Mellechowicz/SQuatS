@@ -56,4 +56,14 @@ Individual suites: `./build/tests/exsqs_tests "~[e2e]"` (fast), `"[e2e]"` (integ
 `./build/exsqs_bench` and `./build/exsqs_bench_scaling` (T-B1, recorded). CI stub in
 `.github/workflows/ci.yml`.
 
+## v1.5 notes
+
+Score any external structure (paper supplementary files, ATAT output, hand-built cells) under a
+config -- the raw-structure comparison the SPEC 4.1 scale caveat demands:
+
+    ./build/exsqs score configs/w70cr30_4x4x4.yaml runs/*/best_00.vasp [--json scores.json]
+
+Input site order is free; lattice, species and composition must match the config (convert CIF
+etc. with `tools/py/to_poscar.py`).
+
 License: MIT (see LICENSE).
