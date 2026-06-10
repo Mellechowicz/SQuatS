@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.4 (2026-05-19) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.5 (2026-06-09) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -168,7 +168,9 @@ inherited from the paper's scale, were infeasible and are replaced by floor-rela
 - **Extinction** (Alg. 1:14–17): survival probability `E_min/E_i` (`ratio`, default) or
   `min(1, exp(−β(E_i − E_min)))` (`metropolis`). β: fixed value or `auto` =
   `ln 2 / median(E_i − E_min)` recomputed each generation (median structure survives 50%);
-  optional geometric schedule. **[A11]**
+  optional geometric schedule. **[A11]** v1.5 makes the schedule normative: with a numeric β,
+  `β_g = β·growth^g` (`survival.schedule: geometric`, `beta_growth > 0`); `beta: auto`
+  recomputes per generation and rejects the schedule (loud-fail config policy).
 - **[D5]** The current best-by-`E_obj` always survives (`elitism_best = 1`) ⇒ `E_min` monotone.
   (Paper does not state this; without it the stochastic extinction can lose the optimum.)
 - **Repopulation**: parent = uniform random survivor; mutation = `k` composition-preserving swaps
@@ -308,6 +310,8 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-K2 | unit (v1.3) | resume refuses trajectory-signature mismatch; raising budget caps allowed | pass |
 | T-MPI1 | reproducibility (v1.3) | serial vs `mpirun -n 1` vs `-n 3`: outputs, logs, migration ledger | bit-exact |
 | T-E3 | integration (v1.4) | ternary bcc W₆₄Mo₃₂Cr₃₂ (`full_pairs` [A16]): `E_pure ≤ 1.2e-1`, non-P1, composition preserved | pass |
+| T-X1 | unit (v1.5) | `score_structure` reproduces engine records bit-exactly; input site order free; loud mismatch errors | pass |
+| T-A11 | unit (v1.5) | geometric β schedule: growth 1.0 ≡ const bitwise; growth > 1 diverges deterministically | pass |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -347,6 +351,18 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.5 (2026-06-09)** — step-6 interoperability + spec completion:
+  - **`exsqs score`** subcommand (score.hpp): evaluates external POSCARs on the config geometry —
+    E_pure, E/E_floor, D, D(P1)/D, SG, E_obj — with free input site order (coordinate matching),
+    strict lattice/species/composition checks, and optional `--json`. This operationalizes the
+    §4.1 doctrine: cross-code comparisons happen on raw structures (paper/ATAT outputs), never on
+    reported scalars. T-X1 pins bit-exact agreement with the engine's own records.
+  - [A11] geometric β schedule implemented (`survival.schedule: geometric`, `beta_growth`);
+    growth = 1.0 is bit-identical to const. The two fields enter the trajectory signature, and
+    enabling the schedule invalidates earlier state files (correct: the dynamics vocabulary changed).
+  - Non-diagonal `supercell.matrix` (parsed since the 1.0.0 schema) gains first test coverage;
+    `tools/py/to_poscar.py` converts CIF/anything-pymatgen-reads to POSCAR, closing the CIF
+    prototype deferral pragmatically.
 - **v1.4 (2026-05-19)** — step-5 validation + release:
   - **K ≥ 3 validated end-to-end**: [A16] `mode: auto → full_pairs` exercised; the §4.1 floor is
     K-general (K=2's exact `full = 2×diag` identity does not extend); constructive seeding, orbit
