@@ -35,7 +35,7 @@ run_tags() {  # <label> <catch2-tag-filter>
   fi
 }
 
-echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.4, $(date -u +%F))"
+echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.5, $(date -u +%F))"
 echo
 
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
@@ -65,8 +65,10 @@ run_tags "S4  serializer + T-K1 + T-K2"               "[checkpoint]"
 # ---- Step 5: ternary K=3 (v1.4) ----
 run_tags "S5  K=3 config/floor/engine (fast)"         "[ternary]~[e2e]"
 
-# ---- Step 6: interoperability (v1.5) ----
+# ---- Step 6: interoperability + spec completion (v1.5) ----
 run_tags "S6  external-structure scoring (T-X1)"      "[score]"
+run_tags "S6  geometric beta schedule [A11]"          "[schedule]"
+run_tags "S6  non-diagonal supercell matrix"          "[supercell]"
 
 if [ "${SKIP_E2E:-0}" != "1" ]; then
   run_tags "S2/S5  integration T-E1/T-E2/T-E3 [e2e]"  "[e2e]"
