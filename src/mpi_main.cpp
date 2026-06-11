@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
     for (int i : owned) eng[static_cast<size_t>(i)].set_inner_threads(inner);
 
     if (rank == 0) {
-      std::printf("exsqs_mpi 1.4.0 | ranks=%d islands=%d (round-robin) threads/rank=%d\n",
+      std::printf("exsqs_mpi 1.5.0 | ranks=%d islands=%d (round-robin) threads/rank=%d\n",
                   size, cfg.islands, T);
       std::printf("E_floor = %.6e | e_tol(effective) = %.4g%s\n", ctx.e_floor,
                   exsqs::effective_e_tol(cfg, ctx), cfg.e_tol < 0 ? " [auto]" : "");
