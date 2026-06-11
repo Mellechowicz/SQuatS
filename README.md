@@ -64,6 +64,8 @@ config -- the raw-structure comparison the SPEC 4.1 scale caveat demands:
     ./build/exsqs score configs/w70cr30_4x4x4.yaml runs/*/best_00.vasp [--json scores.json]
 
 Input site order is free; lattice, species and composition must match the config (convert CIF
-etc. with `tools/py/to_poscar.py`).
+etc. with `tools/py/to_poscar.py`). Also new: the [A11] geometric beta schedule
+(`survival: {mode: metropolis, beta: B, schedule: geometric, beta_growth: g}`); enabling it
+invalidates earlier state files under `--resume` (signature-guarded, by design).
 
 License: MIT (see LICENSE).
