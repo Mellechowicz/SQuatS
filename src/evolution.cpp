@@ -1087,7 +1087,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
     return std::string(nb);
   };
   j << "{\n";
-  j << "  \"exsqs_version\": \"1.4.0\",\n";
+  j << "  \"exsqs_version\": \"1.5.0\",\n";
   j << "  \"checkpoint\": " << (checkpoint ? "true" : "false") << ",\n";
   j << "  \"success\": " << (out.success ? "true" : "false") << ",\n";
   j << "  \"islands\": " << out.islands << ",\n";
@@ -1153,7 +1153,7 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
 }
 
 int run_from_config(const RunConfig& cfg, const std::string& resume_from) {
-  std::printf("exsqs 1.4.0 | spglib %s\n", spglib_version().c_str());
+  std::printf("exsqs 1.5.0 | spglib %s\n", spglib_version().c_str());
   const RunContext ctx = RunContext::build(cfg);
   const int N = ctx.geom.natoms();
   std::printf("system: %d sites |", N);
