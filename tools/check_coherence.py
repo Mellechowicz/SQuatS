@@ -66,6 +66,18 @@ if ok:
     ver = json.load(open(f"{tmp}/summary.json")).get("exsqs_version", "")
 report("live summary.json exsqs_version", ok and ver == lit, ver or r.stderr.strip()[:60])
 
+# ---- C2: every SPEC section-12 test id is cited by a test/tool -------------
+print("C2 SPEC 12 test-id coverage")
+spec_ids = set(re.findall(r"^\| (T-[A-Z0-9]+) ", spec, re.M))
+cited = set()
+for d in ("tests", "tools"):
+    for p in pathlib.Path(d).rglob("*"):
+        if p.suffix in (".cpp", ".sh", ".py"):
+            cited |= set(re.findall(r"T-[A-Z0-9]+", p.read_text(errors="ignore")))
+cited |= set(re.findall(r"T-[A-Z0-9]+", open("tools/run_all_tests.sh").read()))
+missing = sorted(spec_ids - cited)
+report("all spec ids cited in tests/tools", not missing, ",".join(missing) or f"{len(spec_ids)} ids")
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
