@@ -78,6 +78,14 @@ cited |= set(re.findall(r"T-[A-Z0-9]+", open("tools/run_all_tests.sh").read()))
 missing = sorted(spec_ids - cited)
 report("all spec ids cited in tests/tools", not missing, ",".join(missing) or f"{len(spec_ids)} ids")
 
+# ---- C3: every Catch2 tag is exercised by the runner -----------------------
+print("C3 tag coverage in run_all_tests.sh")
+r = sh(["./build/tests/exsqs_tests", "--list-tags"])
+tags = set(re.findall(r"\[(\w[\w-]*)\]", r.stdout))
+runner = open("tools/run_all_tests.sh").read()
+orphans = sorted(t for t in tags if f"[{t}]" not in runner)
+report("no orphan tags", not orphans, ",".join(orphans) or f"{len(tags)} tags")
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
