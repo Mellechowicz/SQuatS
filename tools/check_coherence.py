@@ -86,6 +86,15 @@ runner = open("tools/run_all_tests.sh").read()
 orphans = sorted(t for t in tags if f"[{t}]" not in runner)
 report("no orphan tags", not orphans, ",".join(orphans) or f"{len(tags)} tags")
 
+# ---- C4: no stale version claims in user-facing strings --------------------
+print("C4 user-facing strings")
+bad = []
+for p in list(pathlib.Path("src").glob("*.cpp")):
+    for i, line in enumerate(p.read_text().splitlines(), 1):
+        if ("fail(" in line or "fprintf" in line or "printf" in line) and re.search(r"v0\.\d", line):
+            bad.append(f"{p.name}:{i}")
+report("no vX.Y claims in errors/prints", not bad, ",".join(bad))
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
