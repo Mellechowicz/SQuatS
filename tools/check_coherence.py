@@ -107,7 +107,16 @@ EXCLUDED = {"max_generations", "max_wall_s", "outdir", "checkpoint_every",
 hpp = open("include/exsqs/config.hpp").read()
 i = hpp.index("struct RunConfig")
 j = hpp.index("{", i)
-block = hpp[j:hpp.index("};", j)]
+depth = 0
+k = j
+for k in range(j, len(hpp)):  # brace-count: member initializers contain "};"
+    if hpp[k] == "{":
+        depth += 1
+    elif hpp[k] == "}":
+        depth -= 1
+        if depth == 0:
+            break
+block = hpp[j:k]
 fields = set(re.findall(r"^\s+[A-Za-z_][\w:<>, ]*?\s+(\w+)\s*[=;{]", block, re.M))
 fields -= {"RunConfig"}
 signed = set(re.findall(r"c\.(\w+)", open("src/serialize.cpp").read()))
