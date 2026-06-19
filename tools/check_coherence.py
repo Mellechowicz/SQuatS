@@ -95,6 +95,28 @@ for p in list(pathlib.Path("src").glob("*.cpp")):
             bad.append(f"{p.name}:{i}")
 report("no vX.Y claims in errors/prints", not bad, ",".join(bad))
 
+# ---- C5: trajectory signature covers every RunConfig field -----------------
+print("C5 signature field ledger")
+# Documented exclusions (rationale): budgets are raisable on resume
+# (max_generations, max_wall_s); output/logging never affect the trajectory
+# (outdir, checkpoint_every, log_info, config_echo); thread counts are
+# performance-only [A14] (omp_threads); x_target is redundant once counts and
+# x_achieved are signed [A5].
+EXCLUDED = {"max_generations", "max_wall_s", "outdir", "checkpoint_every",
+            "log_info", "config_echo", "omp_threads", "x_target"}
+hpp = open("include/exsqs/config.hpp").read()
+i = hpp.index("struct RunConfig")
+j = hpp.index("{", i)
+block = hpp[j:hpp.index("};", j)]
+fields = set(re.findall(r"^\s+[A-Za-z_][\w:<>, ]*?\s+(\w+)\s*[=;{]", block, re.M))
+fields -= {"RunConfig"}
+signed = set(re.findall(r"c\.(\w+)", open("src/serialize.cpp").read()))
+unclassified = sorted(fields - signed - EXCLUDED)
+phantom = sorted(signed - fields)
+report("every field signed or excluded", not unclassified, ",".join(unclassified) or f"{len(fields)} fields")
+report("signature references real fields", not phantom, ",".join(phantom))
+report("no excluded field is also signed", not (EXCLUDED & signed), ",".join(sorted(EXCLUDED & signed)))
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
