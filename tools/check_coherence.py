@@ -126,6 +126,25 @@ report("every field signed or excluded", not unclassified, ",".join(unclassified
 report("signature references real fields", not phantom, ",".join(phantom))
 report("no excluded field is also signed", not (EXCLUDED & signed), ",".join(sorted(EXCLUDED & signed)))
 
+# ---- C6: the SPEC section-11 sample config actually runs -------------------
+print("C6 SPEC 11 sample config")
+m = re.search(r"^## 11\..*?```(?:yaml)?\n(.*?)```", spec, re.S | re.M)
+if not m:
+    report("section-11 yaml block found", False)
+else:
+    tmpf = tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False)
+    tmpf.write(m.group(1))
+    tmpf.close()
+    TMPS.append(tmpf.name)
+    ok, _, r = run_config(tmpf.name)
+    report("section-11 sample loads and runs", ok, (r.stderr.strip().splitlines() or [""])[-1][:70])
+
+# ---- C7: reference configs run --------------------------------------------
+print("C7 reference configs")
+for cfg in sorted(pathlib.Path("configs").glob("*.yaml")):
+    ok, _, r = run_config(str(cfg))
+    report(f"{cfg.name} loads and runs", ok, (r.stderr.strip().splitlines() or [""])[-1][:70] if not ok else "")
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
