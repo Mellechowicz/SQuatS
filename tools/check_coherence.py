@@ -155,6 +155,15 @@ report("header version == latest changelog entry",
 missing_sec = [str(i) for i in range(1, 17) if not re.search(rf"^## {i}\. ", spec, re.M)]
 report("sections 1..16 present", not missing_sec, ",".join(missing_sec))
 
+# ---- C9: README references resolve -----------------------------------------
+print("C9 README references")
+refs = set(re.findall(r"(?:tools|scripts|configs)/[\w./-]+", readme))
+dead = sorted(x for x in refs if not pathlib.Path(x.rstrip(".,)")).exists())
+report("referenced paths exist", not dead, ",".join(dead))
+bins = set(re.findall(r"\./build/(\w+)", readme))
+deadb = sorted(b for b in bins if not pathlib.Path(f"build/{b}").exists())
+report("referenced binaries built", not deadb, ",".join(deadb))
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
