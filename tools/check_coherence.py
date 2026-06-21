@@ -145,6 +145,16 @@ for cfg in sorted(pathlib.Path("configs").glob("*.yaml")):
     ok, _, r = run_config(str(cfg))
     report(f"{cfg.name} loads and runs", ok, (r.stderr.strip().splitlines() or [""])[-1][:70] if not ok else "")
 
+# ---- C8: SPEC structure -----------------------------------------------------
+print("C8 SPEC structure")
+head = re.search(r"Specification v([\d.]+)", spec)
+chlog = re.search(r"^- \*\*v([\d.]+)", spec[spec.index("## 16."):], re.M)
+report("header version == latest changelog entry",
+       bool(head and chlog) and head.group(1) == chlog.group(1),
+       f"{head.group(1) if head else '?'} vs {chlog.group(1) if chlog else '?'}")
+missing_sec = [str(i) for i in range(1, 17) if not re.search(rf"^## {i}\. ", spec, re.M)]
+report("sections 1..16 present", not missing_sec, ",".join(missing_sec))
+
 for t in TMPS:
     shutil.rmtree(t, ignore_errors=True) if os.path.isdir(t) else os.unlink(t)
 
