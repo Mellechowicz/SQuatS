@@ -35,7 +35,7 @@ run_tags() {  # <label> <catch2-tag-filter>
   fi
 }
 
-echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.5, $(date -u +%F))"
+echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.6, $(date -u +%F))"
 echo
 
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
@@ -46,6 +46,17 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
     add "build (all targets)" FAIL "$(( $(date +%s) - t0 ))s" "see /tmp/exsqs_build.log"
     tail -20 /tmp/exsqs_build.log; FAILED=1
   fi
+fi
+
+# ---- Step 0: specification coherence (v1.6, T-CO1) ----
+t0=$(date +%s)
+if python3 tools/check_coherence.py > /tmp/exsqs_coh.log 2>&1; then
+  add "S0  spec/code/tests/docs coherence (T-CO1)" PASS "$(( $(date +%s) - t0 ))s" \
+      "$(grep -c '\[PASS\]' /tmp/exsqs_coh.log) checks"
+else
+  add "S0  spec/code/tests/docs coherence (T-CO1)" FAIL "$(( $(date +%s) - t0 ))s" \
+      "see /tmp/exsqs_coh.log"
+  grep FAIL /tmp/exsqs_coh.log; FAILED=1
 fi
 
 # ---- Step 1: core library (spec sections 3-7) ----

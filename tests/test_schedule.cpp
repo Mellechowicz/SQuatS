@@ -47,7 +47,7 @@ bool outputs_equal(const RunOutput& a, const RunOutput& b) {
 }
 }  // namespace
 
-TEST_CASE("[A11] schedule parsing and validation", "[schedule][config]") {
+TEST_CASE("T-A11: [A11] schedule parsing and validation", "[schedule][config]") {
   const std::string path = "/tmp/exsqs_sched.yaml";
   {
     std::ofstream f(path);
@@ -69,7 +69,7 @@ TEST_CASE("[A11] schedule parsing and validation", "[schedule][config]") {
                       ContainsSubstring("numeric beta"));
 }
 
-TEST_CASE("geometric growth 1.0 == const bitwise; growth > 1 diverges deterministically",
+TEST_CASE("T-A11: geometric growth 1.0 == const bitwise; growth > 1 diverges deterministically",
           "[schedule]") {
   const RunConfig a = base_cfg();
   const RunContext ctx = RunContext::build(a);
