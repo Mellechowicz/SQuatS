@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.5 (2026-06-09) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.6 (2026-06-24) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -312,6 +312,7 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-E3 | integration (v1.4) | ternary bcc W₆₄Mo₃₂Cr₃₂ (`full_pairs` [A16]): `E_pure ≤ 1.2e-1`, non-P1, composition preserved | pass |
 | T-X1 | unit (v1.5) | `score_structure` reproduces engine records bit-exactly; input site order free; loud mismatch errors | pass |
 | T-A11 | unit (v1.5) | geometric β schedule: growth 1.0 ≡ const bitwise; growth > 1 diverges deterministically | pass |
+| T-CO1 | audit (v1.6) | spec↔code↔tests↔configs↔docs coherence: versions, §12 id citations, tag coverage, signature field ledger, §11 sample + configs execute, README refs | pass |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -351,6 +352,21 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.6 (2026-06-24)** — step-7 coherence audit:
+  - **T-CO1 / `tools/check_coherence.py`**: a mechanical audit joins the matrix as its "step-0
+    test" — one version literal everywhere (checked live against `summary.json`), every §12 test
+    id cited by an actual test/tool, every Catch2 tag exercised by the runner, no version claims
+    in user-facing strings, a formal *signature field ledger* (every `RunConfig` field is either
+    in the trajectory signature or on the documented exclusion list: budgets, output/logging,
+    `omp_threads` [A14], `x_target` [A5]), the §11 sample config and every `configs/*.yaml`
+    executed end-to-end, SPEC header == latest changelog version, sections 1–16 present, and all
+    README-referenced paths/binaries resolving.
+  - Drift found and fixed by the audit's first run: T-A11 was defined in §12 but cited nowhere
+    (schedule tests referenced decision [A11] only — now carry the id). The first run also caught
+    a bug in the auditor itself: the struct-field extractor stopped at the first `};`, which any
+    brace-initialized member produces — fixed with brace counting.
+  - Policy, now enforced: step reports are immutable dated snapshots; SPEC, README, configs and
+    code must stay mutually current.
 - **v1.5 (2026-06-09)** — step-6 interoperability + spec completion:
   - **`exsqs score`** subcommand (score.hpp): evaluates external POSCARs on the config geometry —
     E_pure, E/E_floor, D, D(P1)/D, SG, E_obj — with free input site order (coordinate matching),
