@@ -15,6 +15,8 @@ static void usage() {
       "  --resume continue from DIR/state.ckpt (v1.3; bit-exact, budget caps may be raised)\n"
       "subcommand (v1.5): exsqs score <config> [--set ...] <POSCAR>... [--json PATH]\n"
       "  scores external structures on the config geometry: E_pure, E/E_floor, D, SG, E_obj\n"
+      "subcommand (v1.7): exsqs geom <config> [--set ...] [-o geometry.vasp]\n"
+      "  writes the undecorated supercell geometry (frame for tools/py/align_to_config.py)\n"
       "exit codes: 0 success (min E_pure <= e_tol) | 3 budget exhausted | 1 error\n");
 }
 
@@ -41,6 +43,37 @@ int main(int argc, char** argv) {
     try {
       const exsqs::RunConfig cfg = exsqs::load_config(cfgpath, ovr2);
       return exsqs::run_score_cli(cfg, files, json);
+    } catch (const std::exception& e) {
+      std::fprintf(stderr, "exsqs error: %s\n", e.what());
+      return 1;
+    }
+  }
+  if (argc >= 2 && std::string(argv[1]) == "geom") {
+    std::string cfgpath, outp = "geometry.vasp";
+    std::vector<std::string> ovr2;
+    for (int i = 2; i < argc; ++i) {
+      const std::string a = argv[i];
+      if (a == "--set" && i + 1 < argc) {
+        ovr2.push_back(argv[++i]);
+      } else if (a == "-o" && i + 1 < argc) {
+        outp = argv[++i];
+      } else if (cfgpath.empty()) {
+        cfgpath = a;
+      } else {
+        usage();
+        return 1;
+      }
+    }
+    if (cfgpath.empty()) {
+      usage();
+      return 1;
+    }
+    try {
+      const exsqs::RunConfig cfg = exsqs::load_config(cfgpath, ovr2);
+      const exsqs::RunContext ctx = exsqs::RunContext::build(cfg);
+      exsqs::write_poscar(ctx.geom, outp, "exsqs geometry (undecorated supercell)");
+      std::printf("geometry written to %s (%d sites)\n", outp.c_str(), ctx.geom.natoms());
+      return 0;
     } catch (const std::exception& e) {
       std::fprintf(stderr, "exsqs error: %s\n", e.what());
       return 1;
