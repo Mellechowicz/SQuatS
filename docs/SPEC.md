@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.6 (2026-06-24) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.7 (2026-07-03) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -313,6 +313,7 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-X1 | unit (v1.5) | `score_structure` reproduces engine records bit-exactly; input site order free; loud mismatch errors | pass |
 | T-A11 | unit (v1.5) | geometric β schedule: growth 1.0 ≡ const bitwise; growth > 1 diverges deterministically | pass |
 | T-CO1 | audit (v1.6) | spec↔code↔tests↔configs↔docs coherence: versions, §12 id citations, tag coverage, signature field ledger, §11 sample + configs execute, README refs | pass |
+| T-X2 | tool (v1.7) | geom → rotate+permute → align_to_config → score reproduces engine records bitwise (cross-tool, file-level) | pass |
 
 K-ary validation (full_pairs end-to-end, ternary integration case) is deferred to v1.1 per Q3;
 until then K ≥ 3 runs print an `experimental` banner.
@@ -352,6 +353,18 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.7 (2026-07-03)** — step-8 release 1.7.0:
+  - `exsqs geom` writes the undecorated supercell frame; `tools/py/align_to_config.py`
+    (pymatgen StructureMatcher with a species-blind FrameworkComparator) maps rotated /
+    permuted / relabelled external files onto it, closing the scorer's deliberate
+    orientation-strictness for real paper/ATAT inputs. **T-X2** gates the whole pipeline:
+    rotate the recorded champion 90°, shuffle its sites, align, score — bitwise equal to the
+    engine's records.
+  - Release packaging: LICENSE (MIT; holder to be set by the maintainer), CITATION.cff (paper
+    + software), CHANGELOG.md, README restructured with accreted
+    step notes moved to docs/DEV_NOTES.md, tagged v1.7.0.
+  - Version scheme: plain triples continuing the 1.0.0 line; T-CO1's C1 requires the CMake
+    VERSION to equal the driver literal exactly.
 - **v1.6 (2026-06-24)** — step-7 coherence audit:
   - **T-CO1 / `tools/check_coherence.py`**: a mechanical audit joins the matrix as its "step-0
     test" — one version literal everywhere (checked live against `summary.json`), every §12 test
