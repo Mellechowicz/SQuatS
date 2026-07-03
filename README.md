@@ -6,7 +6,7 @@ Optimization for the DFT computational efficiency"* (arXiv:2602.10872). The
 engine minimizes `E_obj = E_pure * D^gamma`, trading correlation error
 `E_pure` against the number of symmetry-inequivalent displacements `D` that a
 downstream phonon/DFT workflow must compute — at `gamma = 1` on the reference
-system it finds cells needing **6x fewer displacements** than a random (P1)
+system it finds cells needing **six-fold fewer displacements** than a random (P1)
 decoration at controlled correlation cost.
 
 Design guarantees, all machine-verified (see Testing): one deterministic
