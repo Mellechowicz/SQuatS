@@ -35,7 +35,7 @@ run_tags() {  # <label> <catch2-tag-filter>
   fi
 }
 
-echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.6, $(date -u +%F))"
+echo "EXSQS verification matrix ($(./build/exsqs --help 2>/dev/null | head -0; true)v1.7, $(date -u +%F))"
 echo
 
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
@@ -80,6 +80,17 @@ run_tags "S5  K=3 config/floor/engine (fast)"         "[ternary]~[e2e]"
 run_tags "S6  external-structure scoring (T-X1)"      "[score]"
 run_tags "S6  geometric beta schedule [A11]"          "[schedule]"
 run_tags "S6  non-diagonal supercell matrix"          "[supercell]"
+
+# ---- Step 8: release pipeline (v1.7) ----
+t0=$(date +%s)
+if bash tools/test_align_roundtrip.sh > /tmp/exsqs_x2.log 2>&1; then
+  add "S8  align + score round trip (T-X2)" PASS "$(( $(date +%s) - t0 ))s" \
+      "$(tail -1 /tmp/exsqs_x2.log | cut -c1-60)"
+else
+  add "S8  align + score round trip (T-X2)" FAIL "$(( $(date +%s) - t0 ))s" \
+      "see /tmp/exsqs_x2.log"
+  FAILED=1
+fi
 
 if [ "${SKIP_E2E:-0}" != "1" ]; then
   run_tags "S2/S5  integration T-E1/T-E2/T-E3 [e2e]"  "[e2e]"

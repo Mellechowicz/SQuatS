@@ -1,71 +1,102 @@
-# exsqs — extinction-based evolutionary SQS generator (minimal)
+# EXSQS — extinction-based evolutionary SQS generator
 
-Minimal C++17 implementation of the extinction evolutionary algorithm for
-Special Quasirandom Structures (arXiv:2602.10872). The engine minimizes
-E_obj = E_pure * D^gamma over decorations of a supercell: correlation error
-against the ideal random alloy, traded against the number D of
-symmetry-inequivalent displacements a phonon workflow must compute.
+C++17 implementation of the extinction evolutionary algorithm for Special
+Quasirandom Structures from *"On generating Special Quasirandom Structures:
+Optimization for the DFT computational efficiency"* (arXiv:2602.10872). The
+engine minimizes `E_obj = E_pure * D^gamma`, trading correlation error
+`E_pure` against the number of symmetry-inequivalent displacements `D` that a
+downstream phonon/DFT workflow must compute — at `gamma = 1` on the reference
+system it finds cells needing **six-fold fewer displacements** than a random (P1)
+decoration at controlled correlation cost.
 
-Build:  cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
-Run:    ./build/exsqs configs/w70cr30_4x4x4.yaml --out runs/demo
-Exit codes: 0 converged to e_tol, 3 budget exhausted, 1 error.
+Design guarantees, all machine-verified (see Testing): one deterministic
+trajectory per config+seed — **bitwise identical** across OpenMP thread
+counts, MPI rank counts, and checkpoint/resume chains; a provable
+quantization floor `E_floor` making convergence targets floor-relative
+(SPEC section 4.1); loud-fail configuration; and a self-auditing coherence
+gate (spec <-> code <-> tests <-> docs).
 
-Outputs: best_XX.vasp (POSCAR) and summary.json in --out.
+Version 1.7.0. `docs/SPEC.md` (v1.7) is the normative specification;
+`CHANGELOG.md` summarizes releases.
 
-Testing: `./build/tests/exsqs_tests` runs the Catch2 suites (geometry, correlations,
-symmetry/dedup, the T-D1 phonopy displacement gate, RNG, config); cross-validate any
-run directory independently with `python3 tools/py/validate.py <dir>` (T-V1).
+## Build
 
-## v1.1 notes
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j
 
-`e_tol: auto` (default) resolves to 3.0 x E_floor, the provable L1 quantization lower bound
-(SPEC 4.1) that the engine logs at startup; the paper's absolute error scale lies below this
-bound for its own reference system, so compare on raw structures (tools/py/validate.py), never
-on reported scalars. Serial exploitation recipe (seed-reproducible):
-`--set parallel.islands=4 --set evolution.survival.mode=metropolis --set evolution.survival.beta=3000`.
-New in v1.1: constructive space-group seeding [D4] behind the P1 rejection filter,
-cyclic-subgroup [D6] moves, mutation `swaps: poisson` (+ `lambda`), `stagnation_stop`.
+Requires CMake >= 3.20, a C++17 compiler, OpenMP. Bundled/fetched: yaml-cpp,
+spglib, Catch2. The MPI driver builds automatically when FindMPI succeeds
+(if several MPI stacks are installed, point CMake at one, e.g.
+`-DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi`).
 
-## v1.2 notes
+## Quickstart
 
-Islands now advance in lockstep with synchronous ring migration (`migration_every`, `migrants`);
-generations execute as parallel rounds under OpenMP (`parallel.omp_threads`). Thread counts never
-change results: runs are bit-identical for 1 vs N threads and match 1.1.0 sequential artifacts
-exactly. Record single-node scaling with `./build/exsqs_bench_scaling`.
+    ./build/exsqs configs/w70cr30_4x4x4.yaml --out runs/demo
 
-## v1.3 notes
+Key outputs in `--out`: `best_XX.vasp` (POSCAR structures), `summary.json`
+(config echo, per-structure records, generation log, migration ledger),
+`checkpoint.json` + `state.ckpt` (resumable state). Exit code 0 = converged
+to `e_tol`, 3 = budget exhausted (resumable). Continue a run, optionally
+raising budgets:
 
-Checkpoint/restart: every run writes `state.ckpt` (at `checkpoint_every` rounds and at exit);
-`--resume DIR` continues bit-exactly - only budget caps may change (signature-guarded), so
-wall-limited segments chain into one deterministic trajectory (`scripts/chain_resume.sh`).
-Multi-node: `mpirun -n R ./build/exsqs_mpi ...` distributes islands over ranks with results
-bit-identical to the serial driver for any R; serial and MPI segments are interchangeable.
-Wire/state format assumes little-endian hosts.
+    ./build/exsqs configs/w70cr30_4x4x4.yaml --resume runs/demo \
+        --set evolution.max_generations=200
 
-## v1.4 notes and testing
+Reference configs: `configs/w70cr30_4x4x4.yaml` (binary bcc, 128 sites),
+`configs/w50mo25cr25_4x4x4.yaml` (ternary, exact-zero floor),
+`configs/smoke_sc27.yaml` (seconds-fast smoke).
 
-K >= 3 is validated end-to-end (`configs/w50mo25cr25_4x4x4.yaml`; `error.mode: auto` resolves to
-full_pairs [A16]); note that commensurate compositions can have E_floor = 0 exactly -- use a
-numeric `e_tol` there. Run the complete verification matrix with:
+## Scoring external structures
 
-    bash tools/run_all_tests.sh          # everything
-    SKIP_E2E=1 bash tools/run_all_tests.sh   # fast gates only
+Compare *raw structures* (paper supplements, ATAT output), never reported
+scalars — absolute error scales are not comparable across codes (SPEC 4.1):
 
-Individual suites: `./build/tests/exsqs_tests "~[e2e]"` (fast), `"[e2e]"` (integration),
-`tools/test_mpi_invariance.sh` (T-MPI1), `tools/py/validate.py <rundir>` (T-V1),
-`./build/exsqs_bench` and `./build/exsqs_bench_scaling` (T-B1, recorded). CI stub in
-`.github/workflows/ci.yml`.
+    ./build/exsqs score configs/w70cr30_4x4x4.yaml some.vasp [--json out.json]
 
-## v1.5 notes
+The scorer is orientation-strict by design. For rotated / reduced / permuted
+files, align them onto the config frame first:
 
-Score any external structure (paper supplementary files, ATAT output, hand-built cells) under a
-config -- the raw-structure comparison the SPEC 4.1 scale caveat demands:
+    ./build/exsqs geom configs/w70cr30_4x4x4.yaml -o geom.vasp
+    python3 tools/py/align_to_config.py geom.vasp their_file.cif aligned.vasp
+    ./build/exsqs score configs/w70cr30_4x4x4.yaml aligned.vasp
 
-    ./build/exsqs score configs/w70cr30_4x4x4.yaml runs/*/best_00.vasp [--json scores.json]
+`tools/py/to_poscar.py` converts anything pymatgen reads to POSCAR.
 
-Input site order is free; lattice, species and composition must match the config (convert CIF
-etc. with `tools/py/to_poscar.py`). Also new: the [A11] geometric beta schedule
-(`survival: {mode: metropolis, beta: B, schedule: geometric, beta_growth: g}`); enabling it
-invalidates earlier state files under `--resume` (signature-guarded, by design).
+## HPC
 
-License: MIT (see LICENSE).
+MPI driver (islands sharded over ranks, rank-count invariant):
+
+    mpirun -n 8 ./build/exsqs_mpi configs/w70cr30_4x4x4.yaml --out runs/mpi
+
+SLURM templates in `scripts/slurm/` (`exsqs_omp.sbatch`, `exsqs_mpi.sbatch`);
+`scripts/chain_resume.sh` chains jobs on the exit-0/3 contract until
+convergence.
+
+## Testing
+
+    bash tools/run_all_tests.sh
+
+runs the full verification matrix (24 gates, ~2 min on a multicore box): unit
+suites (27k+ assertions), the phonopy displacement gate, end-to-end
+integration, MPI rank invariance, python cross-validation of every correlation
+function (`tools/py/validate.py`, |diff| = 0 gates), the T-X2 align/score
+round trip, recorded benchmarks — headed by the coherence audit
+(`python3 tools/check_coherence.py`), which cross-checks versions, test-id
+citations, tag coverage, the trajectory-signature field ledger, executable
+spec samples, and README references.
+
+## Repository layout
+
+`src/`, `include/exsqs/` — engine; `tests/` — Catch2 suites; `tools/` —
+runner, coherence audit, benchmarks, MPI/alignment gates; `tools/py/` —
+validation and interop scripts; `configs/` — reference configs; `scripts/` —
+SLURM + chaining; `docs/` — SPEC.md, TEST_MATRIX.txt, per-step reports,
+DEV_NOTES.md.
+
+## Citing
+
+See `CITATION.cff` (cite the arXiv paper and this software).
+
+## License
+
+MIT — see `LICENSE`.

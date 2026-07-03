@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite both the software and the paper whose
+  algorithm it implements.
+title: "EXSQS: extinction-based evolutionary special quasirandom structures"
+version: 1.7.0
+date-released: 2026-07-03
+license: MIT
+authors:
+  - family-names: "Kądzielawa"
+    given-names: "Andrzej P."
+references:
+  - type: article
+    title: "On generating Special Quasirandom Structures: Optimization for the DFT computational efficiency"
+    authors:
+      - family-names: "Kądzielawa"
+        given-names: "Andrzej P."
+    year: 2026
+    url: "https://arxiv.org/abs/2602.10872"
+    identifiers:
+      - type: other
+        value: "arXiv:2602.10872"
