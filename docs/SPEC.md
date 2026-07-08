@@ -353,6 +353,11 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.7 (2026-07-08, post-release note)** — K = 5 exercise (HEA session): equiatomic bcc
+  MoNbTaVW (Mo₂₆Nb₂₆Ta₂₆V₂₅W₂₅, 128 sites) run end-to-end; **T-V1 at K = 5 passes with
+  |diff| = 0** (`tools/py/validate.py` independently reproduces every `full_pairs` energy).
+  Finding: E_floor = 8.0379e-2 — ~25× the binary floor; the K = 3 dyadic zero-floor phenomenon
+  does not recur at K = 5.
 - **v1.7 (2026-07-03)** — step-8 release 1.7.0:
   - `exsqs geom` writes the undecorated supercell frame; `tools/py/align_to_config.py`
     (pymatgen StructureMatcher with a species-blind FrameworkComparator) maps rotated /
