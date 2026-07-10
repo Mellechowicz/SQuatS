@@ -1,9 +1,10 @@
 # K=5 equiatomic MoNbTaVW on bcc 2x2x2 (supercell-scaling study 2026-07-06).
 # N = 16: the smallest ladder cell; counts 4/3/3/3/3 -- equiatomic only approximately.
+# Equiatomic x=0.2 deviates >2% (comp_tol) at N=16; the nearest representable 4/3/3/3/3 is pinned explicitly.
 # e_tol numeric (floors vary per cell; runs are budget-limited by design).
 lattice:    {type: bcc, a: 3.2}
 supercell:  {diag: [2,2,2]}
-composition: {Mo: 0.2, Nb: 0.2, Ta: 0.2, V: 0.2, W: 0.2}
+composition: {Mo: 0.25, Nb: 0.1875, Ta: 0.1875, V: 0.1875, W: 0.1875}
 zones:      {n_shells: 5, shell_tol: 1.0e-3}
 error:
   weights:  {form: inv_n}
