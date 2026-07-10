@@ -24,4 +24,4 @@ symmetry:   {symprec: 1.0e-5, filter: {policy: reject_p1}}
 displacements: {convention: phonopy_default}
 parallel:   {islands: 4, omp_threads: auto, migration_every: 8, migrants: 2}
 rng:        {seed: 20260704}
-output:     {dir: ./runs/hea677_g0, formats: [poscar], checkpoint_every: 20, log_level: info}
+output:     {dir: ./runs/hea677_g0, formats: [poscar], checkpoint_every: 10, log_level: info}
