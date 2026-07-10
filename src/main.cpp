@@ -117,6 +117,19 @@ int main(int argc, char** argv) {
     usage();
     return 1;
   }
+  // v1.7 post-release: --resume without --out retargeted outputs (and later
+  // checkpoints) to the config's output.dir -- a foot-gun found in the HEA
+  // supercell study. Resume now defaults its outputs to the state directory.
+  if (!resume_dir.empty()) {
+    bool out_given = false;
+    for (const std::string& o : ovr)
+      if (o.rfind("output.dir=", 0) == 0) out_given = true;
+    if (!out_given) {
+      ovr.push_back("output.dir=" + resume_dir);
+      std::fprintf(stderr, "resume: no --out given; outputs default to %s\n",
+                   resume_dir.c_str());
+    }
+  }
   try {
     const exsqs::RunConfig cfg = exsqs::load_config(path, ovr);
     return exsqs::run_from_config(

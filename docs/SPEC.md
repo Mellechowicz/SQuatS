@@ -353,6 +353,10 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.7 (2026-07-10, post-release note 2)** — supercell study fix: `--resume` without
+  `--out` silently retargeted outputs and subsequent state saves to the config's `output.dir`
+  (observed overwriting a sibling run at 6×6×6). Resume now defaults `output.dir` to the state
+  directory and says so on stderr; an explicit `--out` overrides as before.
 - **v1.7 (2026-07-08, post-release note)** — K = 5 exercise (HEA session): equiatomic bcc
   MoNbTaVW (Mo₂₆Nb₂₆Ta₂₆V₂₅W₂₅, 128 sites) run end-to-end; **T-V1 at K = 5 passes with
   |diff| = 0** (`tools/py/validate.py` independently reproduces every `full_pairs` energy).
