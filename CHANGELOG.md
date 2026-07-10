@@ -4,6 +4,12 @@ Software versions below; the authoritative, fully detailed history (including
 every decision id [A*] and test id T-*) is `docs/SPEC.md` section 16, whose
 spec versions are noted in parentheses.
 
+## 1.7.1 (2026-07-10) — supercell-study fix
+- `--resume` without `--out` silently retargeted outputs and subsequent state
+  saves to the config's `output.dir` (observed overwriting a sibling run at
+  6x6x6 in the K=5 study). Resume now defaults `output.dir` to the state
+  directory and says so on stderr; an explicit `--out` overrides as before.
+
 ## 1.7.0 (2026-07-03) — release (SPEC v1.7)
 - `exsqs geom` subcommand: writes the undecorated supercell frame of a config.
 - `tools/py/align_to_config.py`: maps rotated/permuted/relabelled external
