@@ -1,0 +1,28 @@
+# (W_(0.70-e) Cr_(0.30+e))_a Ta_b Fe_c Pb_d on bcc 5x5x6 (N = 300);
+# a = 0.70, b = c = d = 0.10, e = +0.05  ->  x = (W 0.4550, Cr 0.2450, Ta/Fe/Pb 0.10).
+# One point of the host-ratio scan e = -0.09..+0.09 across the 3..6 ladder
+# (study 2026-07-12). K=5 -> full_pairs [A16]; e_tol auto = 3 x E_floor.
+lattice:    {type: bcc, a: 3.2}
+supercell:  {diag: [5,5,6]}
+composition: {W: 0.455000, Cr: 0.245000, Ta: 0.10, Fe: 0.10, Pb: 0.10}
+zones:      {n_shells: 5, shell_tol: 1.0e-3}
+error:
+  weights:  {form: inv_n}
+  mode:     auto
+  gamma:    0.0
+evolution:
+  population: 100
+  outputs: 6
+  e_tol: auto
+  max_generations: 100
+  survival: {mode: ratio}
+  elitism_best: 1
+  p1_elite_quota: 0
+  mutation: {swaps: 1, symmetry_preserving: true, retry_budget: 100}
+  seeding:  {mode: mixed, sg_pool: auto}
+  stagnation_stop: 25
+symmetry:   {symprec: 1.0e-5, filter: {policy: reject_p1}}
+displacements: {convention: phonopy_default}
+parallel:   {islands: 4, omp_threads: auto, migration_every: 8, migrants: 2}
+rng:        {seed: 20260712}
+output:     {dir: ./runs/wcrtafepb_556, formats: [poscar], checkpoint_every: 20, log_level: info}
