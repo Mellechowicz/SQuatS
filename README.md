@@ -89,9 +89,9 @@ spec samples, and README references.
 
 `src/`, `include/exsqs/` — engine; `tests/` — Catch2 suites; `tools/` —
 runner, coherence audit, benchmarks, MPI/alignment gates; `tools/py/` —
-validation and interop scripts; `configs/` — reference configs; `scripts/` —
-SLURM + chaining; `docs/` — SPEC.md, TEST_MATRIX.txt, per-step reports,
-DEV_NOTES.md.
+validation and interop scripts; `configs/` — reference configs (including the
+16-cell K=5 supercell ladder); `scripts/` — SLURM + chaining; `docs/` — SPEC.md,
+TEST_MATRIX.txt, per-step reports, DEV_NOTES.md, SUPERCELL_STUDY.md.
 
 ## Citing
 
