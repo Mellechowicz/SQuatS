@@ -1,0 +1,28 @@
+# K=5 equiatomic MoNbTaVW on bcc 2x2x2 (supercell-scaling study 2026-07-06).
+# N = 16: the smallest ladder cell; counts 4/3/3/3/3 -- equiatomic only approximately.
+# Equiatomic x=0.2 deviates >2% (comp_tol) at N=16; the nearest representable 4/3/3/3/3 is pinned explicitly.
+# e_tol numeric (floors vary per cell; runs are budget-limited by design).
+lattice:    {type: bcc, a: 3.2}
+supercell:  {diag: [2,2,2]}
+composition: {Mo: 0.25, Nb: 0.1875, Ta: 0.1875, V: 0.1875, W: 0.1875}
+zones:      {n_shells: 5, shell_tol: 1.0e-3}
+error:
+  weights:  {form: inv_n}
+  mode:     auto
+  gamma:    0.0
+evolution:
+  population: 100
+  outputs: 6
+  e_tol: 1.0e-3
+  max_generations: 60
+  survival: {mode: ratio}
+  elitism_best: 1
+  p1_elite_quota: 0
+  mutation: {swaps: 1, symmetry_preserving: true, retry_budget: 100}
+  seeding:  {mode: mixed, sg_pool: auto}
+  stagnation_stop: 25
+symmetry:   {symprec: 1.0e-5, filter: {policy: reject_p1}}
+displacements: {convention: phonopy_default}
+parallel:   {islands: 4, omp_threads: auto, migration_every: 8, migrants: 2}
+rng:        {seed: 20260704}
+output:     {dir: ./runs/hea222_g0, formats: [poscar], checkpoint_every: 20, log_level: info}
