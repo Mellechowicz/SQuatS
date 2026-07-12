@@ -353,6 +353,13 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 
 ## 16. Changelog
 
+- **v1.7 (2026-07-12, post-release note 3)** — 16-cell supercell scan (2×2×2 → 7×7×7, K = 5
+  equiatomic bcc, γ ∈ {0, 1}; docs/SUPERCELL_STUDY.md): the floor law **E_floor = 0 ⟺ 25 | N**
+  holds on all sixteen cells; equiatomic x = 1/5 is unrepresentable within `comp_tol` below 54
+  sites; the γ = 1 ordered-compound collapse (Cmcm, D = 10, E_pure = 7.938889 bit-identical at
+  200 and 300 sites) reproduces exactly on the two 5,5-axis cells and nowhere else; at ≥ 504
+  sites γ = 1 reaches 4× displacement reductions at correlation error equal to or better than
+  γ = 0.
 - **v1.7 (2026-07-10, post-release note 2)** — supercell study fix: `--resume` without
   `--out` silently retargeted outputs and subsequent state saves to the config's `output.dir`
   (observed overwriting a sibling run at 6×6×6). Resume now defaults `output.dir` to the state
