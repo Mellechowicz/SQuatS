@@ -1,12 +1,18 @@
-# EXSQS — extinction-based evolutionary SQS generator
+# SQuatS — Symmetric QUasirandom ATomic Structures
 
-C++17 implementation of the extinction evolutionary algorithm for Special
-Quasirandom Structures from *"On generating Special Quasirandom Structures:
-Optimization for the DFT computational efficiency"* (arXiv:2602.10872). The
-engine minimizes `E_obj = E_pure * D^gamma`, trading correlation error
-`E_pure` against the number of symmetry-inequivalent displacements `D` that a
-downstream phonon/DFT workflow must compute — at `gamma = 1` on the reference
-system it finds cells needing **six-fold fewer displacements** than a random (P1)
+**SQuatS** (**S**ymmetric **QU**asirandom **AT**omic **S**tructures) are
+special quasirandom structures that keep a deliberate residue of crystal
+symmetry: instead of scrambling the cell into P1, the generator trades
+correlation error `E_pure` against the number `D` of symmetry-inequivalent
+displacements a downstream phonon/DFT workflow must compute, minimizing
+`E_obj = E_pure * D^gamma`. Classical SQS is the `gamma = 0` member of the
+family.
+
+This repository is the SQuatS project. Its engine, **EXSQS**, is a C++17
+implementation of the extinction evolutionary algorithm from *"On generating
+Special Quasirandom Structures: Optimization for the DFT computational
+efficiency"* (arXiv:2602.10872) — at `gamma = 1` on the reference system it
+finds cells needing **six-fold fewer displacements** than a random (P1)
 decoration at controlled correlation cost.
 
 Design guarantees, all machine-verified (see Testing): one deterministic
