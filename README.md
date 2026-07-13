@@ -30,10 +30,11 @@ Version 1.7.0. `docs/SPEC.md` (v1.7) is the normative specification;
     cmake -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build -j
 
-Requires CMake >= 3.20, a C++17 compiler, OpenMP. Bundled/fetched: yaml-cpp,
-spglib, Catch2. The MPI driver builds automatically when FindMPI succeeds
-(if several MPI stacks are installed, point CMake at one, e.g.
-`-DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi`).
+Requires CMake >= 3.20 (< 4.0), a C++17 compiler, OpenMP. Bundled/fetched:
+yaml-cpp, spglib, Catch2. The MPI driver builds automatically when FindMPI
+succeeds (if several MPI stacks are installed, point CMake at one, e.g.
+`-DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi`). Full dependency list, tuning
+guidance and site instructions: `docs/INSTALL.md`.
 
 ## Quickstart
 
@@ -76,7 +77,9 @@ MPI driver (islands sharded over ranks, rank-count invariant):
 
 SLURM templates in `scripts/slurm/` (`exsqs_omp.sbatch`, `exsqs_mpi.sbatch`);
 `scripts/chain_resume.sh` chains jobs on the exit-0/3 contract until
-convergence.
+convergence. Site-ready script sets for LUMI-C and Cyfronet's Helios —
+compile driver plus three run flows each — live in `scripts/hpc/lumi/` and
+`scripts/hpc/helios/` (see `docs/INSTALL.md`).
 
 ## Testing
 
