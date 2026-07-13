@@ -53,3 +53,46 @@ pymatgen / time. Exit codes everywhere: 0 = converged, 3 = budget exhausted
   `evolution.max_generations` or wall budgets.
 - Resume chains change only budget caps between segments:
   `scripts/chain_resume.sh` loops run -> exit 3 -> `--resume` until exit 0.
+
+## HPC sites
+
+Ready-made scripts live under `scripts/hpc/<site>/`; each site has an
+environment file, a compile driver and three run flows. All of them are
+submitted **from the repository root**, and all honour the exit-0/3 contract:
+
+| script                    | flow |
+|---------------------------|------|
+| `env.sh`                  | module loads + pinning (source it, don't run it) |
+| `compile.sh`              | configure + build + smoke; first run on a **login node** (FetchContent needs internet), afterwards `sbatch`-able |
+| `run_omp_chain.sbatch`    | flow 1: single-node islands+OpenMP with in-job resume chain |
+| `run_mpi.sbatch`          | flow 2: multi-node MPI islands, self-resubmitting on budget exhaustion |
+| `run_ladder_array.sbatch` | flow 3: campaign scan, one array task per config with per-task resume chains |
+
+Common knobs (via `--export=ALL,...`): `CFG`, `RUNDIR` (same value resumes),
+`MAX_SEGMENTS`, `SEGMENT_WALL_S`, `CONFIG_GLOB`/`RUNDIR_BASE` (array flow).
+
+### LUMI-C (`scripts/hpc/lumi/`, account `project_465002828`)
+
+- HPE Cray EX, 2x AMD EPYC 7763 = 128 cores/node, 256 GiB (standard nodes).
+- Modules: `LUMI/24.03 partition/C` + `cpeGNU/24.03` (GNU compilers,
+  cray-mpich linked automatically by the `cc`/`CC` wrappers) +
+  `buildtools/24.03` (cmake 3.x). Versions move with system upgrades —
+  `module avail LUMI`.
+- Partitions used: `debug` (compile, 30 min), `small` (by-core: OMP chain and
+  array flows, 16 cores each, max 3 days), `standard` (whole-node MPI flow,
+  8 ranks x 16 threads per node, max 2 days).
+- MPI launches with `srun` (no mpirun on LUMI).
+
+### Helios, Cyfronet (`scripts/hpc/helios/`, account `plgtopologyybbi2-cpu`)
+
+- HPE Cray EX, 2x AMD EPYC 9654 = 192 cores/node, 384 GiB (`plgrid`
+  partition); PLGrid accounts need the `-cpu` suffix — the bare grant name
+  fails.
+- Modules (hierarchical lmod, compiler -> MPI -> rest):
+  `GCC/13.2.0 OpenMPI/5.0.3 CMake/3.27.6` — check drifted versions with
+  `module spider CMake`; cmake must stay >= 3.20 and < 4.0.
+- Partitions used: `plgrid-now` (compile, high-priority, 12 h cap),
+  `plgrid` (all three flows, 72 h cap); `plgrid-long` exists for >72 h runs
+  with special grant permission.
+- MPI flow fills nodes with 12 ranks x 16 threads; if `srun` lacks PMIx
+  support for OpenMPI, swap in `mpiexec -n $SLURM_NTASKS`.
