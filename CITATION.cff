@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: >-
   If you use this software, please cite both the software and the paper whose
   algorithm it implements.
-title: "EXSQS: extinction-based evolutionary special quasirandom structures"
+title: "SQuatS: Symmetric QUasirandom ATomic Structures (EXSQS engine)"
 version: 1.7.0
 date-released: 2026-07-03
 license: MIT
