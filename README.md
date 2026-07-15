@@ -109,3 +109,6 @@ See `CITATION.cff` (cite the arXiv paper and this software).
 ## License
 
 MIT — see `LICENSE`.
+
+## Disclaimer
+For the coding and version control, we used assisst by [Claude Code](https://claude.com/claude-code).
