@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.7 (2026-07-03) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.8 (2026-07-15) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
@@ -352,6 +352,13 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 → `displacements` → `dedup`. Step 2 (the full §8 engine) proceeds tests-first from there.
 
 ## 16. Changelog
+
+- **v1.8 (2026-07-15)** — housekeeping release: repository-wide `*.tex` ignore (manuscript and
+  presentation sources live outside the code history); first public mirror at
+  github.com/Mellechowicz/SQuatS; LUMI-C validation campaigns T1/T2 of the two-level parallel
+  design executed (single-node probe Amdahl p = 0.479 dominated by the fixed serial floor;
+  island throughput saturating at ranks = islands, mean lockstep imbalance 133 ms per
+  generation). No engine behaviour changes; trajectories bit-identical to v1.7.1.
 
 - **v1.7 (2026-07-12, post-release note 3)** — 16-cell supercell scan (2×2×2 → 7×7×7, K = 5
   equiatomic bcc, γ ∈ {0, 1}; docs/SUPERCELL_STUDY.md): the floor law **E_floor = 0 ⟺ 25 | N**
