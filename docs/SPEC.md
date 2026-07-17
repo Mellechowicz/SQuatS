@@ -119,6 +119,37 @@ error on raw structures (the T-V1 route). v1.0's absolute defaults (`e_tol: 3e-4
 inherited from the paper's scale, were infeasible and are replaced by floor-relative values
 (§11, §12).
 
+### 4.2 Multiplet sectors (v1.9)
+
+The pair objective gains optional cancellation-free triplet and quadruplet sectors:
+
+```
+E = E_2 + lambda3 * E_3 + lambda4 * E_4,     E_k = SUM_c SUM_tau | C_c(tau)/I_c - p(tau) |
+```
+
+The classes `c` partition the k-site clusters of the UNDECORATED geometry whose edges all fit a
+cutoff radius (`multiplets.shell3/shell4` name the zone the radius spans), keyed by the sorted
+edge-length multiset — an isometry invariant, hence every class is a union of orbits of the dedup
+group Π [A9] and every class count is invariant under the relabelling group: the canonical-label
+archive, the [D6] mutation and the reproducibility contract carry over unchanged. Instances are
+*anchored* (each geometric k-cluster appears once per vertex, k in total); occupancies
+`C_c(tau)/I_c` are unaffected by the uniform multiplicity. `p(tau)` is the multinomial target on
+the achieved composition; per-class quantization gives a per-sector floor **bound** (the sectors
+couple through the single decoration, so unlike §4.1 it need not be attained; T-M2 verifies both
+directions). With sectors on, the logged `E_floor` (and the `e_tol: auto` base) is the exact pair
+floor plus the lambda-weighted sector bounds.
+
+Class inventories are a lattice fingerprint (T-M1 pins them): bcc within two zones has exactly one
+triangle class — the (r1,r1,r2) isosceles, 12 per site — and one quad, the r1^4·r2^2 disphenoid
+(6 per site); nothing is equilateral and the NN-only cutoff admits nothing at all. fcc at the NN
+cutoff has the equilateral triangle (8 per site) and the regular tetrahedron (2 per site).
+
+Config (`error.multiplets`): `lambda3`, `lambda4` (>= 0, default 0 = the pair-only engine,
+bitwise), `shell3` (default 2), `shell4` (default 1). The knobs enter the trajectory signature
+only when a lambda is nonzero, so pair-only checkpoints from <= v1.8 stay resumable. Cost: the
+counting kernel is serial per candidate (the engine parallelizes across candidates); gates:
+T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
+
 ## 5. Symmetry and filtration
 
 - Backend: spglib on ideal decorated cells (positions exact ⇒ tolerance-robust);
@@ -352,6 +383,11 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 → `displacements` → `dedup`. Step 2 (the full §8 engine) proceeds tests-first from there.
 
 ## 16. Changelog
+
+- **v1.9 (2026-07-17)** — multiplet correlation sectors (§4.2): optional triplet/quadruplet
+  L1 sectors over Π-invariant cluster classes, `E = E_2 + λ3·E_3 + λ4·E_4`; per-sector floor
+  bounds; sector-aware `score`; signature guard extended (pair-only checkpoints unaffected);
+  gates T-M1…T-M5. λ3 = λ4 = 0 (default) is bit-identical to v1.8.
 
 - **v1.8 (2026-07-15)** — housekeeping release: repository-wide `*.tex` ignore (manuscript and
   presentation sources live outside the code history); first public mirror at
