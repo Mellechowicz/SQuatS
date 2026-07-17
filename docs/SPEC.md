@@ -439,8 +439,8 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
   - New binary encoding (`serialize.hpp`): little-endian, IEEE-754 bit patterns; homogeneous
     little-endian clusters assumed and guarded. Engine exposed via `EngineHandle`
     (island_engine.hpp) for external drivers and tests.
-  - CLI `--resume DIR`; SLURM templates (`scripts/slurm/`) and a resubmission-chain pattern
-    (`scripts/chain_resume.sh`) keyed to the 0/3 exit-code contract.
+  - CLI `--resume DIR`; SLURM templates (`__scripts/slurm/`) and a resubmission-chain pattern
+    (`__scripts/chain_resume.sh`) keyed to the 0/3 exit-code contract.
   - New tests T-K1/T-K2/T-MPI1. Mid-run `checkpoint.json` snapshots are not written under MPI
     (state.ckpt supersedes them there); per-generation stdout rows come from rank 0's islands.
 - **v1.2 (2026-03-31)** — step-3 parallel layer:
