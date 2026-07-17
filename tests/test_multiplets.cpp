@@ -20,7 +20,9 @@
 #include <vector>
 
 #include "exsqs/cluster.hpp"
+#include "exsqs/config.hpp"
 #include "exsqs/dedup.hpp"
+#include "exsqs/evolution.hpp"
 #include "exsqs/lattice.hpp"
 #include "exsqs/linalg.hpp"
 #include "exsqs/structure.hpp"
@@ -216,4 +218,50 @@ TEST_CASE("T-M3 sector errors are Pi-invariant; lambda 0 is inert", "[multiplets
     ++checked;
   }
   REQUIRE(checked >= 2);
+}
+
+TEST_CASE("T-M4 trajectory with active sectors is thread-invariant", "[multiplets][gate]") {
+  RunConfig c;
+  c.proto = make_sc(3.0);
+  c.H = {{{3, 0, 0}, {0, 3, 0}, {0, 0, 3}}};
+  c.species = {"W", "Cr"};
+  c.counts = {14, 13};
+  c.x_target = {14.0 / 27.0, 13.0 / 27.0};
+  c.x_achieved = c.x_target;
+  c.n_shells = 5;
+  c.lambda3 = 0.6;   // sectors ON: the point of the gate
+  c.lambda4 = 0.2;
+  c.mshell3 = 2;
+  c.mshell4 = 2;
+  c.population = 12;
+  c.outputs = 4;
+  c.e_tol = 1e-12;  // unreachable
+  c.max_generations = 8;
+  c.islands = 2;
+  c.migration_every = 3;
+  c.retry_budget = 60;
+  c.seed = 20260717;
+  c.log_info = false;
+  const RunContext ctx = RunContext::build(c);
+  REQUIRE(ctx.multiplets);
+  REQUIRE(ctx.e_floor > ctx.e_floor_pair);
+
+  c.omp_threads = 1;
+  const RunOutput a = run_evolution(c, ctx);
+  c.omp_threads = 4;
+  const RunOutput b = run_evolution(c, ctx);
+  REQUIRE(a.evals == b.evals);
+  REQUIRE(a.outputs.size() == b.outputs.size());
+  for (size_t i = 0; i < a.outputs.size(); ++i) {
+    REQUIRE(a.outputs[i].canonical == b.outputs[i].canonical);  // bit-identical
+    REQUIRE(a.outputs[i].e_pure == b.outputs[i].e_pure);        // exact, no eps
+    REQUIRE(a.outputs[i].e_obj == b.outputs[i].e_obj);
+    REQUIRE(a.outputs[i].D == b.outputs[i].D);
+  }
+  REQUIRE(a.log.size() == b.log.size());
+  for (size_t i = 0; i < a.log.size(); ++i) {
+    REQUIRE(a.log[i].best_e_obj == b.log[i].best_e_obj);
+    REQUIRE(a.log[i].killed == b.log[i].killed);
+    REQUIRE(a.log[i].dup_rejected == b.log[i].dup_rejected);
+  }
 }
