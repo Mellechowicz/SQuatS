@@ -53,6 +53,13 @@ Reference configs: `configs/w70cr30_4x4x4.yaml` (binary bcc, 128 sites),
 `configs/w50mo25cr25_4x4x4.yaml` (ternary, exact-zero floor),
 `configs/smoke_sc27.yaml` (seconds-fast smoke).
 
+Multiplet sectors (v1.9, SPEC 4.2): `error.multiplets: {lambda3: 1.0}`
+adds cancellation-free triplet (and with `lambda4` quadruplet) L1 sectors
+over symmetry-invariant cluster classes, `E = E_2 + l3*E_3 + l4*E_4`;
+`configs/mul_smoke_sc27.yaml` is the smoke,
+`configs/hea5_bcc_5x5x5_mul.yaml` the production example. Defaults (both
+lambdas 0) keep the pair-only engine bit-identical.
+
 ## Scoring external structures
 
 Compare *raw structures* (paper supplements, ATAT output), never reported
