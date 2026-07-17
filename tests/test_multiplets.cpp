@@ -1,6 +1,7 @@
 // v1.9 multiplet-sector gates (SPEC 4.2).
-//   T-M1: anchored instance counts against the lattice inventories (bcc has a
-//         single isosceles triangle class and NO compact quad; fcc has the
+//   T-M1: anchored instance counts against the lattice inventories (bcc: a
+//         single isosceles triangle class + the r1^4 r2^2 disphenoid quad,
+//         nothing equilateral and nothing at the NN-only cutoff; fcc: the
 //         equilateral NN triangle and the NN tetrahedron), plus a golden
 //         recount of the decorated multiset histogram by an independent
 //         brute-force enumerator.
@@ -86,7 +87,7 @@ std::map<std::array<int, 3>, long long> brute_triple_histogram(const Structure& 
 
 }  // namespace
 
-TEST_CASE("T-M1 bcc inventory: one isosceles class; disphenoid quad", "[multiplets][gate]") {
+TEST_CASE("T-M1 bcc inventory: one isosceles class; disphenoid quad", "[multiplets]") {
   auto g = make_supercell_diag(make_bcc(3.165), 3, 3, 3, kWCr);
   const int N = g.natoms();
   REQUIRE(N == 54);
@@ -112,7 +113,7 @@ TEST_CASE("T-M1 bcc inventory: one isosceles class; disphenoid quad", "[multiple
   REQUIRE(nn.c4.empty());
 }
 
-TEST_CASE("T-M1 fcc inventory: equilateral triangle + NN tetrahedron", "[multiplets][gate]") {
+TEST_CASE("T-M1 fcc inventory: equilateral triangle + NN tetrahedron", "[multiplets]") {
   auto g = make_supercell_diag(make_fcc(3.6), 2, 2, 2, kWCr);
   const int N = g.natoms();
   REQUIRE(N == 32);
@@ -128,7 +129,7 @@ TEST_CASE("T-M1 fcc inventory: equilateral triangle + NN tetrahedron", "[multipl
   REQUIRE(ct.inst4 == 8LL * N);
 }
 
-TEST_CASE("T-M1 golden recount on sc, binary and ternary", "[multiplets][gate]") {
+TEST_CASE("T-M1 golden recount on sc, binary and ternary", "[multiplets]") {
   for (int K = 2; K <= 3; ++K) {
     auto g = make_supercell_diag(make_sc(3.0), 3, 3, 3,
                                  K == 2 ? kWCr : kWCrTa);
@@ -158,7 +159,7 @@ TEST_CASE("T-M1 golden recount on sc, binary and ternary", "[multiplets][gate]")
   }
 }
 
-TEST_CASE("T-M2 floor bound holds under exhaustive enumeration", "[multiplets][gate]") {
+TEST_CASE("T-M2 floor bound holds under exhaustive enumeration", "[multiplets]") {
   auto g = make_supercell_diag(make_sc(3.0), 2, 2, 2, kWCr);
   const int N = g.natoms();
   REQUIRE(N == 8);
@@ -192,7 +193,7 @@ TEST_CASE("T-M2 floor bound holds under exhaustive enumeration", "[multiplets][g
   REQUIRE(emin_eq == Approx(0.0).margin(1e-12));  // 0-bound attained at x = 1/2
 }
 
-TEST_CASE("T-M3 sector errors are Pi-invariant; lambda 0 is inert", "[multiplets][gate]") {
+TEST_CASE("T-M3 sector errors are Pi-invariant; lambda 0 is inert", "[multiplets]") {
   auto g = make_supercell_diag(make_bcc(3.165), 2, 2, 2, kWCrTa);
   const int N = g.natoms();
   auto zt = build_zones(g, 3);
@@ -220,7 +221,7 @@ TEST_CASE("T-M3 sector errors are Pi-invariant; lambda 0 is inert", "[multiplets
   REQUIRE(checked >= 2);
 }
 
-TEST_CASE("T-M4 trajectory with active sectors is thread-invariant", "[multiplets][gate]") {
+TEST_CASE("T-M4 trajectory with active sectors is thread-invariant", "[multiplets]") {
   RunConfig c;
   c.proto = make_sc(3.0);
   c.H = {{{3, 0, 0}, {0, 3, 0}, {0, 0, 3}}};
