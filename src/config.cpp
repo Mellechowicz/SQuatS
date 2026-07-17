@@ -184,6 +184,19 @@ RunConfig load_config(const std::string& path, const std::vector<std::string>& o
     else
       fail("error.mode must be auto|diagonal|full_pairs");
     if (e["gamma"]) c.gamma = e["gamma"].as<double>();
+    // v1.9 multiplet sectors (SPEC 4.2); keys parsed and validated even when
+    // the lambdas stay 0, so misuse fails loudly (project config policy)
+    if (const auto mu = e["multiplets"]) {
+      if (mu["lambda3"]) c.lambda3 = mu["lambda3"].as<double>();
+      if (mu["lambda4"]) c.lambda4 = mu["lambda4"].as<double>();
+      if (c.lambda3 < 0 || c.lambda4 < 0) fail("multiplets.lambda3/4 must be >= 0");
+      if (mu["shell3"]) c.mshell3 = mu["shell3"].as<int>();
+      if (mu["shell4"]) c.mshell4 = mu["shell4"].as<int>();
+      if (c.mshell3 < 1 || c.mshell3 > c.n_shells)
+        fail("multiplets.shell3 must be in [1, zones.n_shells]");
+      if (c.mshell4 < 1 || c.mshell4 > c.n_shells)
+        fail("multiplets.shell4 must be in [1, zones.n_shells]");
+    }
   } else {
     c.full_pairs = c.species.size() >= 3;
   }
