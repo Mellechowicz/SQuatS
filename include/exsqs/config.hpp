@@ -28,6 +28,12 @@ struct RunConfig {
   std::vector<double> wcustom;
   bool full_pairs = false;  // resolved from error.mode auto [A16]
   double gamma = 1.0;       // E_obj = E_pure * D^gamma [D3]
+  // v1.9 multiplet sectors (SPEC 4.2): E = E_2 + l3*E_3 + l4*E_4; both
+  // lambdas 0 (the default) reproduces the pair-only engine bitwise.
+  double lambda3 = 0.0;
+  double lambda4 = 0.0;
+  int mshell3 = 2;  // zones spanned by the triplet cutoff radius
+  int mshell4 = 1;  // zones spanned by the quadruplet cutoff radius
 
   // evolution
   int population = 200;
