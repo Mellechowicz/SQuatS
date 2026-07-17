@@ -118,8 +118,13 @@ int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
   std::printf("exsqs score | %d sites | mode=%s gamma=%.3g | E_floor=%.6e%s\n",
               ctx.geom.natoms(), cfg.full_pairs ? "full_pairs" : "diagonal", cfg.gamma,
               ctx.e_floor, ctx.e_floor == 0.0 ? " (commensurate composition)" : "");
-  std::printf("%-32s %13s %9s %6s %8s  %-12s %13s\n", "file", "E_pure", "E/floor", "D",
+  if (ctx.multiplets)  // v1.9: E_pure below is the total sector objective
+    std::printf("multiplets: l3=%.3g l4=%.3g | E = E_pair + l3*E3 + l4*E4 (SPEC 4.2)\n",
+                cfg.lambda3, cfg.lambda4);
+  std::printf("%-32s %13s %9s %6s %8s  %-12s %13s", "file", "E_pure", "E/floor", "D",
               "D(P1)/D", "SG", "E_obj");
+  if (ctx.multiplets) std::printf(" %12s %12s %12s", "E_pair", "E3", "E4");
+  std::printf("\n");
   std::vector<ScoreResult> rows;
   bool all_ok = true;
   for (const std::string& f : files) {
@@ -135,9 +140,11 @@ int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
       }
       char sgb[24];
       std::snprintf(sgb, sizeof sgb, "%d (%s)", r.sg, r.sg_symbol.c_str());
-      std::printf("%-32s %13.6e %9s %6d %8.2f  %-12s %13.6e\n",
+      std::printf("%-32s %13.6e %9s %6d %8.2f  %-12s %13.6e",
                   f.size() > 32 ? ("..." + f.substr(f.size() - 29)).c_str() : f.c_str(), r.e_pure,
                   fl.c_str(), r.D, static_cast<double>(Dp1) / std::max(1, r.D), sgb, r.e_obj);
+      if (ctx.multiplets) std::printf(" %12.6e %12.6e %12.6e", r.e_pair, r.e3, r.e4);
+      std::printf("\n");
       rows.push_back(std::move(r));
     } catch (const std::exception& e) {
       std::fprintf(stderr, "%s: %s\n", f.c_str(), e.what());
@@ -161,8 +168,11 @@ int run_score_cli(const RunConfig& cfg, const std::vector<std::string>& files,
       const ScoreResult& r = rows[i];
       j << "    {\"file\": \"" << r.file << "\", \"e_pure\": " << num(r.e_pure)
         << ", \"e_obj\": " << num(r.e_obj) << ", \"D\": " << r.D << ", \"sg\": " << r.sg
-        << ", \"sg_symbol\": \"" << r.sg_symbol << "\", \"pg_order\": " << r.pg_order << "}"
-        << (i + 1 < rows.size() ? "," : "") << "\n";
+        << ", \"sg_symbol\": \"" << r.sg_symbol << "\", \"pg_order\": " << r.pg_order;
+      if (ctx.multiplets)
+        j << ", \"e_pair\": " << num(r.e_pair) << ", \"e3\": " << num(r.e3)
+          << ", \"e4\": " << num(r.e4);
+      j << "}" << (i + 1 < rows.size() ? "," : "") << "\n";
     }
     j << "  ]\n}\n";
     std::printf("json written to %s\n", json_path.c_str());

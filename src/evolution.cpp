@@ -1132,6 +1132,16 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "  \"e_tol\": " << num(cfg.e_tol) << ",\n";
   j << "  \"e_tol_effective\": " << num(effective_e_tol(cfg, ctx)) << ",\n";
   j << "  \"e_floor\": " << num(ctx.e_floor) << ",\n";
+  if (ctx.multiplets) {  // v1.9 (SPEC 4.2) provenance of the sector objective
+    j << "  \"e_floor_pair\": " << num(ctx.e_floor_pair) << ",\n";
+    j << "  \"multiplets\": {\"lambda3\": " << num(cfg.lambda3)
+      << ", \"lambda4\": " << num(cfg.lambda4) << ", \"shell3\": " << cfg.mshell3
+      << ", \"shell4\": " << cfg.mshell4 << ", \"classes3\": " << ctx.clusters.c3.size()
+      << ", \"classes4\": " << ctx.clusters.c4.size()
+      << ", \"instances3\": " << ctx.clusters.inst3 << ", \"instances4\": " << ctx.clusters.inst4
+      << ", \"floor3\": " << num(ctx.clusters.floor3)
+      << ", \"floor4\": " << num(ctx.clusters.floor4) << "},\n";
+  }
   j << "  \"gamma\": " << num(cfg.gamma) << ",\n";
   j << "  \"error_mode\": \"" << (cfg.full_pairs ? "full_pairs" : "diagonal") << "\",\n";
   j << "  \"weights\": [";
@@ -1185,8 +1195,18 @@ int run_from_config(const RunConfig& cfg, const std::string& resume_from) {
               cfg.metropolis ? "metropolis" : "ratio",
               cfg.seed_mode == 0 ? "rejection" : (cfg.seed_mode == 1 ? "constructive" : "mixed"),
               cfg.mut_sympres ? "on" : "off", effective_e_tol(cfg, ctx), cfg.population, cfg.islands);
-  std::printf("E_floor = %.6e (L1 quantization bound, SPEC 4.1)%s\n", ctx.e_floor,
-              cfg.e_tol < 0 ? "  [e_tol auto -> 3.0 x E_floor]" : "");
+  if (ctx.multiplets) {  // v1.9 (SPEC 4.2)
+    std::printf("multiplets: l3=%.3g (shell<=%d, %zu classes, %lld inst)", cfg.lambda3,
+                cfg.mshell3, ctx.clusters.c3.size(), ctx.clusters.inst3);
+    if (cfg.lambda4 > 0.0)
+      std::printf(" | l4=%.3g (shell<=%d, %zu classes, %lld inst)", cfg.lambda4, cfg.mshell4,
+                  ctx.clusters.c4.size(), ctx.clusters.inst4);
+    std::printf(" | sector bounds E3>=%.6e E4>=%.6e\n", ctx.clusters.floor3, ctx.clusters.floor4);
+  }
+  std::printf("E_floor = %.6e (%s, SPEC 4.%d)%s\n", ctx.e_floor,
+              ctx.multiplets ? "pair floor + lambda-weighted sector bounds"
+                             : "L1 quantization bound",
+              ctx.multiplets ? 2 : 1, cfg.e_tol < 0 ? "  [e_tol auto -> 3.0 x E_floor]" : "");
   if (effective_e_tol(cfg, ctx) < ctx.e_floor)
     std::fprintf(stderr,
                  "exsqs warning: e_tol=%.3g is below E_floor=%.3g (infeasible); "
