@@ -191,6 +191,15 @@ std::string trajectory_signature(const RunConfig& c) {
   w.i32(c.islands);
   w.i32(c.migration_every);
   w.i32(c.migrants);
+  // v1.9 multiplet sectors: appended ONLY when enabled, so every pair-only
+  // checkpoint written by <= 1.8 keeps its signature and stays resumable.
+  if (c.lambda3 > 0.0 || c.lambda4 > 0.0) {
+    w.raw("MUL1", 4);
+    w.f64(c.lambda3);
+    w.f64(c.lambda4);
+    w.i32(c.mshell3);
+    w.i32(c.mshell4);
+  }
   return w.data();
 }
 
