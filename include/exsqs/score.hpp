@@ -17,8 +17,10 @@ namespace exsqs {
 
 struct ScoreResult {
   std::string file;
-  double e_pure = 0.0;
+  double e_pure = 0.0;  // total: pair + lambda-weighted sectors (v1.9)
   double e_obj = 0.0;
+  double e_pair = 0.0;  // pair sector alone
+  double e3 = 0.0, e4 = 0.0;  // multiplet sectors (0 when off)
   int D = 0;
   int sg = 0;
   std::string sg_symbol;

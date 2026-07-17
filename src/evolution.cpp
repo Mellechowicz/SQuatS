@@ -745,6 +745,11 @@ class IslandEngine {
     const CorrData cd = count_pairs(s, ctx_.zones);
     out.e_pure = cfg_.full_pairs ? e_pure_full(cd, cfg_.x_achieved, ctx_.weights)
                                  : e_pure_diagonal(cd, cfg_.x_achieved, ctx_.weights);
+    if (ctx_.multiplets) {  // v1.9 (SPEC 4.2): E = E_2 + l3*E_3 + l4*E_4
+      double e3 = 0.0, e4 = 0.0;
+      e_multiplets(out.sigma, ctx_.clusters, e3, e4);
+      out.e_pure += cfg_.lambda3 * e3 + cfg_.lambda4 * e4;
+    }
     out.e_obj = out.e_pure * std::pow(static_cast<double>(out.D), cfg_.gamma);
   }
 
