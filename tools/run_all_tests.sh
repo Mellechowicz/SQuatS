@@ -81,6 +81,9 @@ run_tags "S6  external-structure scoring (T-X1)"      "[score]"
 run_tags "S6  geometric beta schedule [A11]"          "[schedule]"
 run_tags "S6  non-diagonal supercell matrix"          "[supercell]"
 
+# ---- Step 9: multiplet sectors (v1.9, SPEC 4.2) ----
+run_tags "S9  multiplet sectors (T-M1..T-M4)"         "[multiplets]"
+
 # ---- Step 8: release pipeline (v1.7) ----
 t0=$(date +%s)
 if bash tools/test_align_roundtrip.sh > /tmp/exsqs_x2.log 2>&1; then
@@ -112,8 +115,20 @@ if [ "${SKIP_MPI:-0}" != "1" ] && [ -x build/exsqs_mpi ]; then
     add "S4  T-MPI1 rank invariance" FAIL "$(( $(date +%s) - t0 ))s" "see /tmp/exsqs_mpi_test.log"
     tail -15 /tmp/exsqs_mpi_test.log; FAILED=1
   fi
+  # v1.9: the same invariance with the multiplet sectors active (T-M5)
+  t0=$(date +%s)
+  if tools/test_mpi_invariance.sh build/exsqs build/exsqs_mpi configs/mul_smoke_sc27.yaml "$MP" \
+      > /tmp/exsqs_mpi_mul.log 2>&1; then
+    add "S9  T-M5 rank invariance, sectors on" PASS "$(( $(date +%s) - t0 ))s" \
+        "$(tail -1 /tmp/exsqs_mpi_mul.log)"
+  else
+    add "S9  T-M5 rank invariance, sectors on" FAIL "$(( $(date +%s) - t0 ))s" \
+        "see /tmp/exsqs_mpi_mul.log"
+    tail -15 /tmp/exsqs_mpi_mul.log; FAILED=1
+  fi
 else
   add "S4  T-MPI1 rank invariance" SKIP "-" "SKIP_MPI=1 or exsqs_mpi absent"
+  add "S9  T-M5 rank invariance, sectors on" SKIP "-" "SKIP_MPI=1 or exsqs_mpi absent"
 fi
 
 if [ "${SKIP_V1:-0}" != "1" ]; then
