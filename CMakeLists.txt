@@ -43,6 +43,7 @@ add_library(exsqs_core
   src/symmetry.cpp
   src/displacements.cpp
   src/dedup.cpp
+  src/cluster.cpp
   src/testcells.cpp
   src/config.cpp
   src/evolution.cpp
