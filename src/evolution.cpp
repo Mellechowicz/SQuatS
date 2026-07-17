@@ -204,9 +204,18 @@ RunContext RunContext::build(const RunConfig& cfg) {
   if (csum != N) throw std::runtime_error("evolution: composition counts do not sum to N");
   ctx.zones = build_zones(ctx.geom, cfg.n_shells, cfg.shell_tol);
   ctx.weights = make_weights(cfg.wform, ctx.zones, cfg.wpow, cfg.wcustom);
-  ctx.e_floor = cfg.full_pairs
-                    ? e_floor_full(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights)
-                    : e_floor_diagonal(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights);
+  ctx.e_floor_pair = cfg.full_pairs
+                         ? e_floor_full(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights)
+                         : e_floor_diagonal(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights);
+  ctx.e_floor = ctx.e_floor_pair;
+  ctx.multiplets = cfg.lambda3 > 0.0 || cfg.lambda4 > 0.0;
+  if (ctx.multiplets) {
+    ctx.clusters = build_clusters(ctx.geom, ctx.zones, cfg.x_achieved, cfg.mshell3, cfg.mshell4,
+                                  cfg.lambda4 > 0.0);
+    // total bound: exact pair floor + per-sector bounds (bounds only -- the
+    // sectors couple through the one decoration, SPEC 4.2)
+    ctx.e_floor += cfg.lambda3 * ctx.clusters.floor3 + cfg.lambda4 * ctx.clusters.floor4;
+  }
   ctx.perms = site_permutations(ctx.geom, cfg.symprec);
   ctx.empty_info = get_symmetry(ctx.geom, cfg.symprec);
   std::set<std::vector<int>> sp;

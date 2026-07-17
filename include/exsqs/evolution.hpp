@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "exsqs/cluster.hpp"
 #include "exsqs/config.hpp"
 #include "exsqs/rng.hpp"
 #include "exsqs/structure.hpp"
@@ -71,7 +72,12 @@ struct RunContext {
   Structure geom;  // undecorated supercell
   ZoneTable zones;
   std::vector<double> weights;
-  double e_floor = 0.0;  // v1.1 (SPEC 4.1): L1 quantization lower bound
+  double e_floor = 0.0;  // v1.1 (SPEC 4.1): L1 quantization lower bound; with
+                         // multiplets on it is the TOTAL bound (pair floor +
+                         // lambda-weighted sector bounds, SPEC 4.2)
+  ClusterTable clusters;      // v1.9 multiplet classes (empty when off)
+  bool multiplets = false;    // lambda3 > 0 or lambda4 > 0
+  double e_floor_pair = 0.0;  // the exact pair-sector floor alone
   std::vector<std::vector<int>> perms;       // empty-cell site permutations [A9]
   SymmetryInfo empty_info;                   // ops of the empty supercell
   std::vector<std::vector<int>> seed_perms;  // perms of ops with R != I (non-P1 guarantee)
