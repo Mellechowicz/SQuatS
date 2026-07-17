@@ -1,4 +1,4 @@
-# EXSQS — Specification v1.8 (2026-07-15) — v1.0 frozen 2026-02-16; changes tracked in §16
+# EXSQS — Specification v1.9 (2026-07-17) — v1.0 frozen 2026-02-16; changes tracked in §16
 
 Supersedes the v0.1 draft (`SPEC_step0.md`). All Step-0 blocking decisions are resolved (§14);
 Step 0 is complete. Changes vs draft: Q1→[A15], Q2→[A16], Q3→§1 scope; new test T-C4.
