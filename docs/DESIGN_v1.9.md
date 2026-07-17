@@ -25,11 +25,11 @@ Measured inventories (conventional cube a = 1; verified by direct
 enumeration 2026-07-17):
 
   bcc  r1 = sqrt(3)/2 (z1 = 8), r2 = 1 (z2 = 6)
-       triangles with sides <= r2: ONE class, isoceles (r1, r1, r2),
+       triangles with sides <= r2: ONE class, isosceles (r1, r1, r2),
        nu = 12 per site; NO equilateral r1 triangles; NO r1 tetrahedra.
   fcc  r1 = 1/sqrt(2) (z1 = 12), r2 = 1 (z2 = 6)
        equilateral (r1, r1, r1): nu = 8 per site;
-       isoceles (r1, r1, r2): nu = 12 per site;
+       isosceles (r1, r1, r2): nu = 12 per site;
        r1 tetrahedra: nu = 2 per site (the textbook two tetrahedral
        holes per fcc site -- validates the enumerator).
 
@@ -78,7 +78,7 @@ mutation and the bit-reproducibility contract carry over unchanged,
 and D is untouched by definition.
 
 **Role-resolved refinement (deferred).** In asymmetric classes the
-vertex roles are inequivalent (the bcc isoceles apex sees two r1
+vertex roles are inequivalent (the bcc isosceles apex sees two r1
 edges; the base vertices one each). A role-resolved count
 C_c(t_apex; {t_base}) is strictly finer and strictly costlier; v1.9
 ships the multiset form, the role resolution is reserved as a future
