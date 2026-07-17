@@ -130,40 +130,96 @@ mini-budgets; the winner is argmin of the reached E_obj. The winner is
 a pure function of (parent, x, restrictions, seed, k, budget), so the
 whole selection inherits the bit-reproducibility contract.
 
-## Part II — workflow (algorithms)
+## Part II — workflow (algorithms) (v2, 2026-07-17)
 
-### II.1 Multiplets
+### II.1 Algorithm M — multiplet evaluation
 
-- A-M1 cluster tables: new clusters.{hpp,cpp}; RunContext gains a
-  ClusterTable built once (pair zones reused; triples/quads enumerated
-  per site, orbit-classified under Pi; per-site tuple lists stored).
-- A-M2 counting: CorrData extension holding C_c(t1..tk); read-only
-  tables, OpenMP-safe per-candidate loops.
-- A-M3 objective: e_pure gains the lambda_3/lambda_4 sectors; config
-  block error.clusters {triplet_shells, quadruplet_shells, lambda3,
-  lambda4, weights}; all defaults preserve v1.8 trajectories bitwise.
-- A-M4 floor: per-class bound added to e_floor reporting (bound, not
-  exact — labelled as such in summary.json and the banner).
-- A-M5 parity: score subcommand, summary.json fields, and — critical —
-  trajectory_signature extended with every new knob (resume guard).
-- Optimization milestone (M2, after the MVP): delta-evaluation on swap
-  mutations — a swap touches two sites, so only their tuple lists need
-  recounting: O(zbar^2) per swap instead of O(N zbar^2) per candidate.
+**M-BUILD (once, in RunContext::build).**
 
-### II.2 Cell search
+    input:  ZoneTable (per-site neighbour lists), Pi (site permutations),
+            cutoffs R_3 (default: zone-2 radius), R_4 (zone-1 radius)
+    1  for each site i: W_i := { j : d_ij <= R_3 }        (from ZoneTable)
+    2  triples: for each i, for j < k in W_i with d_jk <= R_3 and
+       i = min(i,j,k): emit instance {i,j,k}               (each once)
+    3  quads analogously inside R_4 (all six edges bounded)
+    4  pre-bucket instances by the sorted distance multiset
+    5  refine buckets into Pi-ORBIT classes: sweep the generators of Pi
+       with a union-find over instances (g maps instance to instance;
+       linear passes until closure) -- distance buckets only seed the
+       partition, the orbit refinement is authoritative
+    6  store: per class c: I_c, nu_c, the precomputed target table
+       p_c(tau) and the floor-bound table dist(p tau I_c, Z)/I_c;
+       per site i: incidence list [(c, partner sites...)] for the
+       delta-update path
+    output: ClusterTable
 
-- A-C1 `exsqs cells` subcommand: parent lattice + composition +
-  restrictions in, ranked cell table out (csv/json + ready config
-  snippets). HNF enumeration, point-group reduction, Minkowski
-  reduction, filters, analytic floors.
-- A-C2 tournament driver (`--tournament <budget>`): deterministic
-  seeded mini-runs over the top-k cells, winner by E_obj.
-- A-C3 config integration: supercell: {search: {sites: [min,max],
-  commensurate: true, min_width_shells: 5, max_aspect: 2.0, top: 10}}
-  resolves to a concrete H BEFORE RunContext::build — the engine core
-  and the reproducibility contract stay untouched.
+Multiset indexing: a decorated instance maps to the sorted species
+tuple; with K <= 5 the tuple ranks into K(K+1)(K+2)/6 (triples) or
+K(K+1)(K+2)(K+3)/24 (quads) slots by the combinatorial number system --
+one small lookup, no hashing.
 
-### II.3 Test workflow
+**M-EVAL (per candidate).**
+
+    1  zero the per-class count arrays C_c[.]
+    2  parallel over the instance list (static partition):
+       read (sigma_i, sigma_j, sigma_k) -> multiset rank -> increment
+       the thread-local C_c buffer
+    3  reduce the thread buffers (integer sums: associative, order-free
+       -> the bit-reproducibility contract is untouched)
+    4  E_3 = sum_c A_c sum_tau |C_c[tau]/I_c - p_c(tau)|; E_4 alike
+    5  E = E_2 + lambda_3 E_3 + lambda_4 E_4;   E_D = E * D^gamma
+
+Guard: lambda_3 = lambda_4 = 0 short-circuits M-EVAL entirely (the
+v1.8 code path, bitwise).
+
+**M-DELTA (milestone M2, optional).** A [D6]/[A12] mutation swaps two
+sites a, b: only the instances on the incidence lists of a and b (an
+instance containing both counted once) change decoration; decrement
+the old tuple, increment the new one. Cost O(nu z^2-local) per swap
+instead of O(sum_c I_c) per candidate. Requires the evaluation to keep
+the parent's C_c arrays alongside the child's -- deferred until the
+MVP is gated.
+
+### II.2 Algorithm C — restricted cell-shape search
+
+**C-ENUM (subcommand `exsqs cells`).**
+
+    input:  parent lattice A, composition x, restrictions
+            (N window, commensuration mode, w_min, kappa_max, top-k)
+    1  for M = N_min/n_basis .. N_max/n_basis:
+         enumerate the HNFs: diagonals (a, c, f) with a c f = M,
+         off-diagonals b in [0, c), d, e in [0, f)
+    2  equivalence dedup: canon(H) := min over R in the parent point
+       group of HNF(R H) (columns re-reduced); keep first occurrence
+       of each canon (hash set) -- Hart-Forcade reduction
+    3  geometry: B = A H; Minkowski-reduce B (3D Lagrange sweep);
+       reject if w(H) = min_i V/|b_j x b_k| < 2 R_shell(n_s)
+       or kappa(H) = max|b_i|/min|b_i| > kappa_max
+    4  commensuration: counts by largest remainder; STRICT mode
+       rejects unless x_t N integer for all t
+    5  analytic scores per survivor:
+         E_floor(H, x)  -- build_zones on the empty supercell + the
+                           closed pair-floor formula
+         |Pi(H)|        -- one spglib call on the empty supercell
+    6  rank by F(H) = (E_floor, -|Pi|, kappa) lexicographic
+       (weighted scalarization by config); emit the top-k table
+       (csv/json) + ready config snippets
+    output: ranked cells; optionally hand to C-TOURN
+
+**C-TOURN (optional, `--tournament <budget>`).**
+
+    for each of the top-k cells, in rank order:
+        run the engine with the SAME seed and the SAME budget
+        (islands, wall) on that cell; record min E_D
+    winner := argmin; ties broken by rank order
+    -- the winner is a pure function of (A, x, restrictions, seed, k,
+       budget): the selection inherits the reproducibility contract
+
+Cost note: steps 1-6 are seconds for tens-to-hundreds of candidate
+cells (the zone build is O(27 N n_basis) per cell and spglib is one
+call); the tournament dominates by construction and is budget-capped.
+
+### II.3 Test workflow (unchanged from v1)
 
 - T-M1 golden counts: brute-force multiplet counting vs ClusterTable on
   tiny cells (<= 16 sites), all lattices.
