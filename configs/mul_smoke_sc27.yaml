@@ -1,0 +1,21 @@
+# Multiplet-sector smoke (v1.9, SPEC 4.2): the sc27 smoke system with the
+# triplet and quadruplet sectors switched on. Finishes in seconds.
+lattice:    {type: sc, a: 3.0}
+supercell:  {diag: [3, 3, 3]}
+composition: {W: 0.52, Cr: 0.48}
+zones:      {n_shells: 5, shell_tol: 1.0e-3}
+error:
+  weights: {form: inv_n}
+  mode: auto
+  gamma: 1.0
+  multiplets: {lambda3: 0.5, lambda4: 0.25, shell3: 2, shell4: 2}
+evolution:
+  population: 32
+  outputs: 4
+  e_tol: 1.0e-6            # effectively unreachable -> exercises the budget path
+  max_generations: 40
+  survival: {mode: ratio}
+  mutation: {swaps: 1, symmetry_preserving: true, retry_budget: 60}
+  seeding:  {mode: mixed, sg_pool: auto}
+rng:        {seed: 7}
+output:     {dir: ./runs/mul_smoke, checkpoint_every: 20, log_level: info}
