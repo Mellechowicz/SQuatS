@@ -104,11 +104,15 @@ TEST_MATRIX.txt, per-step reports, DEV_NOTES.md, SUPERCELL_STUDY.md.
 
 ## Citing
 
-See `CITATION.cff` (cite the arXiv paper and this software).
+Please cite the Acta Physica Polonica B paper (DOI
+[10.5506/APhysPolB.57.5-A15](https://doi.org/10.5506/APhysPolB.57.5-A15))
+and this software (github.com/Mellechowicz/SQuatS). Ready-made BibTeX
+entries live in `CITATION.bib`; citation metadata in `CITATION.cff`
+(GitHub's "Cite this repository" button uses it).
 
 ## License
 
 MIT — see `LICENSE`.
 
 ## Disclaimer
-For the coding and version control, we used assisst by [Claude Code](https://claude.com/claude-code).
+For the coding and version control, we used assist by [Claude Code](https://claude.com/claude-code).
