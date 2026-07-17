@@ -180,6 +180,23 @@ instead of O(sum_c I_c) per candidate. Requires the evaluation to keep
 the parent's C_c arrays alongside the child's -- deferred until the
 MVP is gated.
 
+```mermaid
+flowchart LR
+  subgraph BUILD["M-BUILD (once, RunContext)"]
+    Z[("ZoneTable lists;<br/>cutoffs R3, R4")] --> E["enumerate instances once<br/>(anchor i = min)"]
+    E --> O["distance pre-buckets refined<br/>into Pi-ORBIT classes<br/>(generator sweep, union-find)"]
+    O --> T[("ClusterTable: I_c, p(tau),<br/>floor bounds, incidence lists")]
+  end
+  subgraph EVAL["M-EVAL (per candidate)"]
+    L{"lambda3 = lambda4 = 0?"} -- yes --> V["pair path only<br/>(v1.8, bitwise)"]
+    L -- no --> C["parallel over instances:<br/>species tuple -> multiset rank<br/>-> thread-local C_c"]
+    C --> R["order-free integer reduction<br/>(bit-reproducible)"]
+    R --> B["E = E2 + l3*E3 + l4*E4;<br/>E_D = E * D^gamma"]
+  end
+  T -. lookup .-> C
+  B -. "swap delta-update [M2]" .-> C
+```
+
 ### II.2 Algorithm C — restricted cell-shape search
 
 **C-ENUM (subcommand `exsqs cells`).**
@@ -218,6 +235,21 @@ MVP is gated.
 Cost note: steps 1-6 are seconds for tens-to-hundreds of candidate
 cells (the zone build is O(27 N n_basis) per cell and spglib is one
 call); the tournament dominates by construction and is budget-capped.
+
+```mermaid
+flowchart TD
+  I[("parent A, composition x, restrictions:<br/>N window, commensuration mode,<br/>w_min, kappa_max, top-k")] --> H["enumerate HNFs:<br/>acf = M, b < c, d,e < f"]
+  H --> D["canonical dedup (Hart-Forcade):<br/>canon(H) = min over R of HNF(RH)"]
+  D --> G{"Minkowski-reduced B = AH:<br/>w >= 2 R_shell, kappa <= kappa_max?"}
+  G -- no --> X["reject"]
+  G -- yes --> K{"commensurate?<br/>largest remainder / strict"}
+  K -- no --> X
+  K -- yes --> S["analytic scores: E_floor closed form;<br/>abs(Pi) - one spglib call"]
+  S --> F["rank F(H) = (E_floor, -abs(Pi), kappa)<br/>-> top-k table + config snippets"]
+  F --> Q{tournament?}
+  Q -- no --> OUT[("ranked table (exit)")]
+  Q -- yes --> R["top-k cells, identical seed + budget;<br/>winner = argmin E_D (deterministic)"]
+```
 
 ### II.3 Test workflow (unchanged from v1)
 
