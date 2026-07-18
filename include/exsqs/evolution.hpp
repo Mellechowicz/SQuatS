@@ -78,6 +78,7 @@ struct RunContext {
   ClusterTable clusters;      // v1.9 multiplet classes (empty when off)
   bool multiplets = false;    // lambda3 > 0 or lambda4 > 0
   double e_floor_pair = 0.0;  // the exact pair-sector floor alone
+  double e_random = 0.0;      // analytic E[random] of the pair sector (SPEC 4.3)
   std::vector<std::vector<int>> perms;       // empty-cell site permutations [A9]
   SymmetryInfo empty_info;                   // ops of the empty supercell
   std::vector<std::vector<int>> seed_perms;  // perms of ops with R != I (non-P1 guarantee)

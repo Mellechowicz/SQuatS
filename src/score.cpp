@@ -102,7 +102,9 @@ ScoreResult score_structure(const RunConfig& cfg, const RunContext& ctx, const S
   const CorrData cd = count_pairs(dec, ctx.zones);
   r.e_pure = cfg.full_pairs ? e_pure_full(cd, cfg.x_achieved, ctx.weights)
                             : e_pure_diagonal(cd, cfg.x_achieved, ctx.weights);
-  r.e_pair = r.e_pure;
+  r.e_pair = r.e_pure;  // the raw pair error, before any normalization
+  if (cfg.normalize_epure && ctx.e_random > 0.0)
+    r.e_pure /= ctx.e_random;  // pair sector only (SPEC 4.3)
   if (ctx.multiplets) {  // v1.9 (SPEC 4.2): the search's exact objective
     e_multiplets(sigma, ctx.clusters, r.e3, r.e4);
     r.e_pure += cfg.lambda3 * r.e3 + cfg.lambda4 * r.e4;
