@@ -150,6 +150,28 @@ only when a lambda is nonzero, so pair-only checkpoints from <= v1.8 stay resuma
 counting kernel is serial per candidate (the engine parallelizes across candidates); gates:
 T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
 
+### 4.3 Objective normalization by the analytic random expectation (post-1.9)
+
+`error.normalize: true` reports the PAIR sector in units of its analytic random-alloy
+expectation:
+
+```
+E[random] = SUM_n A_n SUM_t sqrt( 2 x_t (1 - x_t) / (pi P_t(n)) )     # diagonal; full sums u too
+E         = E_2 / E[random] + lambda3 E_3 + lambda4 E_4               # sectors stay RAW
+```
+
+The per-term expectation is the half-normal mean absolute deviation of a binomial proportion
+(E|p - x| for p ~ Bin(P, x)/P); the finite-population (hypergeometric) correction of the
+fixed-composition shuffle is deliberately ignored -- the normalizer is a SCALE, not a bound.
+The pair floor is divided by the same constant before the raw sector bounds join, so
+`E/E_floor` ratios and the `e_tol: auto` semantics are unchanged. Motivation: at gamma = 1 the
+un-normalized objective lets commensurate cells collapse onto low-D ordered compounds (the
+Cmcm pathology of the supercell study); in units of E[random], "E = 1" means "as random as the
+cell allows" on every cell, and the D^gamma factor trades against a scale-free quantity.
+Default off; the flag enters the trajectory signature (block `NRM1`) only when set, so
+pair-only checkpoints stay resumable. Gates: T-N1 (formula + K = 2 identity), T-N2 (pair-only
+composition), T-N3 (signature + thread invariance), tag `[normalize]`.
+
 ## 5. Symmetry and filtration
 
 - Backend: spglib on ideal decorated cells (positions exact ⇒ tolerance-robust);
@@ -383,6 +405,10 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 → `displacements` → `dedup`. Step 2 (the full §8 engine) proceeds tests-first from there.
 
 ## 16. Changelog
+
+- **v1.9 (2026-07-18, post-release note)** -- objective normalization by the analytic
+  random expectation (SS4.3, `error.normalize`): the pair sector and its floor divided by the
+  closed-form E[random]; sectors stay raw; signature block `NRM1`; gates T-N1..T-N3.
 
 - **v1.9 (2026-07-17)** — multiplet correlation sectors (§4.2): optional triplet/quadruplet
   L1 sectors over Π-invariant cluster classes, `E = E_2 + λ3·E_3 + λ4·E_4`; per-sector floor
