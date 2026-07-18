@@ -27,6 +27,7 @@ struct RunConfig {
   double wpow = 1.0;
   std::vector<double> wcustom;
   bool full_pairs = false;  // resolved from error.mode auto [A16]
+  bool normalize_epure = false; // divide E_pure by analytic E[random]
   double gamma = 1.0;       // E_obj = E_pure * D^gamma [D3]
   // v1.9 multiplet sectors (SPEC 4.2): E = E_2 + l3*E_3 + l4*E_4; both
   // lambdas 0 (the default) reproduces the pair-only engine bitwise.

@@ -183,6 +183,7 @@ RunConfig load_config(const std::string& path, const std::vector<std::string>& o
       c.full_pairs = true;
     else
       fail("error.mode must be auto|diagonal|full_pairs");
+    if (e["normalize"]) c.normalize_epure = e["normalize"].as<bool>();
     if (e["gamma"]) c.gamma = e["gamma"].as<double>();
     // v1.9 multiplet sectors (SPEC 4.2); keys parsed and validated even when
     // the lambdas stay 0, so misuse fails loudly (project config policy)
