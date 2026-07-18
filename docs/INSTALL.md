@@ -32,7 +32,7 @@ and rebuilds are fully offline.
     bash tools/run_all_tests.sh          # full 24-gate matrix, ~2 min
     ./build/exsqs configs/smoke_sc27.yaml --set evolution.max_generations=8 --out /tmp/s
 
-`SKIP_MPI=1` / `SKIP_V1=1` / `SKIP_E2E=1` skip the gates that need MPI /
+$SKIP_MPI=1$ / $SKIP_V1=1$ / $SKIP_E2E=1$ skip the gates that need MPI /
 pymatgen / time. Exit codes everywhere: 0 = converged, 3 = budget exhausted
 (resumable, **not** an error), 1 = error.
 
@@ -46,7 +46,7 @@ pymatgen / time. Exit codes everywhere: 0 = converged, 3 = budget exhausted
   layer saturates near 16 threads (measured Amdahl fit on N=250: p = 0.787,
   S_inf = 4.7); beyond that, extra cores are better spent on more islands.
   On a whole node prefer e.g. 8 ranks x 16 threads over 1 x 128.
-- **Pin threads**: `OMP_PLACES=cores OMP_PROC_BIND=close` (the SLURM scripts
+- **Pin threads**: $OMP_PLACES=cores OMP_PROC_BIND=close$ (the SLURM scripts
   below set this).
 - **Budget by cell size** — per-evaluation cost grows like `|Pi| * N`
   (recorded T-B1 law), so large cells need proportionally larger
