@@ -21,7 +21,7 @@ In scope:
 - **K-component data model from day one; v1 *validated* scope is binary (K = 2).** K-ary code
   paths are compiled and unit-tested but flagged `experimental` at runtime until the K-ary
   validation pass (v1.1). *(Q3 resolution.)*
-- Fixed supercell per run: diagonal `n1×n2×n3` or full 3×3 integer matrix H (shape *scan* = outer
+- Fixed supercell per run: diagonal $n_1 \times n_2 \times n_3$ or full 3×3 integer matrix H (shape *scan* = outer
   loop over configs, embarrassingly parallel; shape *optimization* is out of scope).
 - Pair correlations by coordination zone (paper-faithful). Triplets/CE clusters: out of scope v1.
 - Objective = correlation error × displacement-count penalty; pure-SQS mode via `gamma: 0`.
@@ -31,39 +31,37 @@ relaxed/strained geometries (ideal lattice positions only).
 
 ## 2. Notation and data model
 
-- Prototype lattice cell `A0` (3×3, columns = vectors), basis sites; supercell `A = A0·H`,
-  `N = m·n_basis` sites at ideal fractional coordinates `f_i` (exact rationals by construction).
-- Species set `T = {t_1..t_K}`; decoration `σ: {1..N} → T`; counts `N_t`, achieved concentrations
+- Prototype lattice cell $A_0$ (3×3, columns = vectors), basis sites; supercell $A = A_0 \cdot H$,
+  $N = m \cdot n_{\mathrm{basis}}$ sites at ideal fractional coordinates $f_i$ (exact rationals by construction).
+- Species set $T = \{t_1 .. t_K\}$; decoration $\sigma: \{1..N\} \to T$; counts $N_t$, achieved concentrations
   `x̃_t = N_t/N` (§9).
-- Background `B`: the 27 periodic copies of the supercell, offsets `(i,j,k) ∈ {−1,0,1}³` (Alg. 2:2–7).
-  Ordered pairs `(i ∈ S, j ∈ B)` with `d_ij > 0` — i.e., the zero-distance self pair is excluded,
+- Background `B`: the 27 periodic copies of the supercell, offsets $(i,j,k) \in \{-1,0,1\}^3$ (Alg. 2:2–7).
+  Ordered pairs $(i \in S, j \in B)$ with $d_{ij} > 0$ — i.e., the zero-distance self pair is excluded,
   but nonzero self-images **are** legitimate PBC neighbors and are included. **[A1]**
-- `D(σ)`: number of irreducible finite-displacement calculations for the phonon run (§6).
+- $D(\sigma)$: number of irreducible finite-displacement calculations for the phonon run (§6).
 
 ## 3. Geometry: coordination zones
 
 - Zones are a property of the **undecorated** geometry: sorted pair distances of `(S,B)` merged into
-  shells with tolerance `ε_shell` (relative, default `1e-3`); shell n has radius `R_n` and per-site
-  count `Z_n` (constant across sites because active sites are one orbit — v1 scope guard). **[A2]**
+  shells with tolerance $\varepsilon_{\mathrm{shell}}$ (relative, default `1e-3`); shell n has radius $R_n$ and per-site
+  count $Z_n$ (constant across sites because active sites are one orbit — v1 scope guard). **[A2]**
 - Pair→zone lookup precomputed **once per (lattice, H, n_shells)** and shared by all evaluations;
   stored as per-site neighbor lists up to shell `n_max` (not the full 27N² table).
-- `n_max` default 7. If `R_{n_max}` exceeds half the minimal supercell width, emit a warning
+- `n_max` default 7. If $R_{n_{\max}}$ exceeds half the minimal supercell width, emit a warning
   (correlations there are constrained by self-images — allowed, but user should know). **[A3]**
-- Sanity identities: `Σ_i (neighbors of i in shell n) = N·Z_n`; bcc coordination sequence
+- Sanity identities: $\sum_i (\text{neighbors of } i \text{ in shell } n) = N \cdot Z_n$; bcc coordination sequence
   8, 6, 12, 24, 8; fcc 12, 6, 24, 12, 24 (used in tests, §12).
 
 ## 4. Correlation and error function
 
-Counters over ordered pairs within shells `n = 1..n_max`, for center type `t`, neighbor type `t'`:
+Counters over ordered pairs within shells $n = 1 .. n_{\max}$, for center type `t`, neighbor type `t'`:
 
-```
-C_{t,t'}(n) = #{ (i,j) : σ_i = t, σ_j = t', zone(i,j) = n }
-P_t(n)      = Σ_{t'} C_{t,t'}(n)                     # pairs whose central atom is type t
-Π_{t,t'}(n) = C_{t,t'}(n) / P_t(n)                   # P(neighbor is t' | center is t), Σ_{t'} Π = 1
-```
+$$C_{t,t'}(n) = \#\{\, (i,j) : \sigma_i = t,\ \sigma_j = t',\ \mathrm{zone}(i,j) = n \,\}$$
+$$P_t(n) = \sum_{t'} C_{t,t'}(n) \qquad \text{(pairs whose central atom is type } t\text{)}$$
+$$\Pi_{t,t'}(n) = C_{t,t'}(n)\,/\,P_t(n) \qquad \text{(} P(\text{neighbor is } t' \mid \text{center is } t)\text{;}\ \textstyle\sum_{t'} \Pi = 1\text{)}$$
 
-**[D1]** Alg. 2:19 `population` is read as `P_t(n)` above (pairs whose *central* atom is type t).
-Justification: only then does the random limit give `Π_{t,t}(n) → x_t`, which is what line 20
+**[D1]** Alg. 2:19 `population` is read as $P_t(n)$ above (pairs whose *central* atom is type t).
+Justification: only then does the random limit give $\Pi_{t,t}(n) \to x_t$, which is what line 20
 compares against. Normalizing by all pairs would give `x_t²` and never converge to `x_t`.
 
 **[D2]** Alg. 2:20 `correlation = x[atomType]` is read as `-=` (subtraction). The error term is the
@@ -72,49 +70,43 @@ absolute deviation from the random limit.
 **[A16] Error modes** *(Q2 resolution)* — config `error.mode: auto | diagonal | full_pairs`,
 default `auto` = `diagonal` for K = 2, `full_pairs` for K ≥ 3:
 
-```
-diagonal   (paper-faithful):  E_pure = Σ_n A_n Σ_t     | Π_{t,t}(n)  − x̃_t  |
-full_pairs (K ≥ 3 default):   E_pure = Σ_n A_n Σ_{t,t'} | Π_{t,t'}(n) − x̃_t' |
-E_obj = E_pure · D^γ                                  # γ = 1 default; γ = 0 → pure-SQS mode
-```
+$$\text{diagonal (paper-faithful):}\quad E_{\mathrm{pure}} = \sum_n A_n \sum_t \bigl|\, \Pi_{t,t}(n) - \tilde{x}_t \,\bigr|$$
+$$\text{full\_pairs (}K \ge 3\text{ default):}\quad E_{\mathrm{pure}} = \sum_n A_n \sum_{t,t'} \bigl|\, \Pi_{t,t'}(n) - \tilde{x}_{t'} \,\bigr|$$
 
 - Rationale: for K = 2 the off-diagonal deviations are fully determined by the diagonal ones; for
   K ≥ 3 diagonal-only under-constrains the SRO matrix.
-- Exact identities (used as tests): `C_{t,t'}(n) = C_{t',t}(n)` (ordered-pair bijection), and for
-  **K = 2: `E_full ≡ 2·E_diag` for every decoration** — mode choice never changes rankings for
+- Exact identities (used as tests): $C_{t,t'}(n) = C_{t',t}(n)$ (ordered-pair bijection), and for
+  **K = 2: $E_{\mathrm{full}} \equiv 2\cdot E_{\mathrm{diag}}$ for every decoration** — mode choice never changes rankings for
   binaries, only the scale. Consequence: `e_tol` is interpreted in the *active* mode's scale;
   logs always report both `E_diag` and `E_full` for K = 2.
-- Weights `A_n`: `1/n` default; options `n^{−p}`, `R_n^{−1}`, explicit list (paper tested these;
+- Weights $A_n$: `1/n` default; options $n^{-p}$, $R_n^{-1}$, explicit list (paper tested these;
   `1/n` converged best for cheap supercells). **[A4]**
-- **[D3]** Exponent γ generalizes Alg. 2:22 (`γ=1` reproduces the paper; `γ=0` gives an
+- **[D3]** Exponent $\gamma$ generalizes Alg. 2:22 ($\gamma=1$ reproduces the paper; $\gamma=0$ gives an
   ATAT/sqsgenerator-comparable pure error for benchmarking).
-- Interpretation (documentation + validator): `|Π_{t,t}(n) − x̃_t| = x̃_t·|α_tt(n)|` with the diagonal
-  Warren–Cowley parameter `α_tt(n) = 1 − Π_{t,t}(n)/x̃_t`. So E_pure is a weighted sum of
+- Interpretation (documentation + validator): $|\Pi_{t,t}(n) - \tilde{x}_t| = \tilde{x}_t\cdot |\alpha_{tt}(n)|$ with the diagonal
+  Warren–Cowley parameter $\alpha_{tt}(n) = 1 - \Pi_{t,t}(n)/\tilde{x}_t$. So $E_{\mathrm{pure}}$ is a weighted sum of
   concentration-scaled |WC SRO| values.
-- Targets are the **achieved** concentrations `x̃_t`, not the requested ones (§9). **[A5]**
-- Note for tests: a random *canonical* decoration has `E[Π_{t,t}(n)] = (N_t−1)/(N−1)`, not `x̃_t`
+- Targets are the **achieved** concentrations $\tilde{x}_t$, not the requested ones (§9). **[A5]**
+- Note for tests: a random *canonical* decoration has $E[\Pi_{t,t}(n)] = (N_t-1)/(N-1)$, not $\tilde{x}_t$
   (hypergeometric, offset `(1−x̃_t)/(N−1)`); the statistical test (§12, T-C3) must expect this.
 
-### 4.1 Quantization floor E_floor (v1.1)
+### 4.1 Quantization floor $E_{\mathrm{floor}}$ (v1.1)
 
-`C` counters are integers while `P_t(n) = N_t·Z_n` is fixed by composition and geometry, so every
-error term is bounded below: `|Π_{t,t'}(n) − x̃_{t'}| ≥ dist(x̃_{t'}·P_t(n), ℤ)/P_t(n)`. Summing the
-independent per-term minima gives a computable lower bound on E_pure:
+`C` counters are integers while $P_t(n) = N_t\cdot Z_n$ is fixed by composition and geometry, so every
+error term is bounded below: $|\Pi_{t,t'}(n) - \tilde{x}_{t'}| \ge dist(\tilde{x}_{t'}\cdot P_t(n), \mathbb{Z})/P_t(n)$. Summing the
+independent per-term minima gives a computable lower bound on $E_{\mathrm{pure}}$:
 
-```
-E_floor = Σ_n A_n Σ_t dist(x̃_t·P_t(n), ℤ) / P_t(n)     # diagonal; full_pairs sums t' too
-                                                        # (K = 2: exactly 2×E_floor_diag)
-```
+$$E_{\mathrm{floor}} = \sum_n A_n \sum_t \mathrm{dist}\!\left(\tilde{x}_t \cdot P_t(n),\ \mathbb{Z}\right) / P_t(n) \qquad \text{(diagonal; full\_pairs sums } t' \text{ too; } K = 2\text{: exactly } 2 \times E^{\mathrm{diag}}_{\mathrm{floor}}\text{)}$$
 
-Reference system W₉₀Cr₃₈ / bcc 4×4×4 / 7 shells / A_n = 1/n: `E_floor = 3.246e-3`. The engine
-computes and logs E_floor at startup and warns when the requested `e_tol` lies below it
+Reference system $\mathrm{W_{90}Cr_{38}}$ / bcc $4{\times}4{\times}4$ / 7 shells / $A_n = 1/n$: $E_{\mathrm{floor}} = 3.246 \times 10^{-3}$. The engine
+computes and logs $E_{\mathrm{floor}}$ at startup and warns when the requested `e_tol` lies below it
 (infeasible; the run then terminates on caps only). For *commensurate* compositions every
-`x̃_t·P_t(n)` can be integral and `E_floor = 0` exactly (e.g. W₆₄Mo₃₂Cr₃₂ on bcc 4×4×4, v1.4):
+$\tilde{x}_t\cdot P_t(n)$ can be integral and $E_{\mathrm{floor}} = 0$ exactly (e.g. W₆₄Mo₃₂Cr₃₂ on bcc 4×4×4, v1.4):
 the bound is then uninformative and `e_tol: auto` degenerates to 0 — set a numeric tolerance.
 
-**Scale caveat (v1.1):** the paper's reported absolute errors (Fig. 1: 𝔈 = 2.01–2.92·10⁻⁴ for this
+**Scale caveat (v1.1):** the paper's reported absolute errors (Fig. 1: $\mathfrak{E} = 2.01\text{--}2.92 \times 10^{-4}$ for this
 very system) lie *below* this provable bound, so the paper's reported scalar carries an unstated
-normalization. Absolute 𝔈 values are not comparable across codes; comparisons must recompute the
+normalization. Absolute $\mathfrak{E}$ values are not comparable across codes; comparisons must recompute the
 error on raw structures (the T-V1 route). v1.0's absolute defaults (`e_tol: 3e-4`, T-E1's `1e-3`),
 inherited from the paper's scale, were infeasible and are replaced by floor-relative values
 (§11, §12).
@@ -123,9 +115,7 @@ inherited from the paper's scale, were infeasible and are replaced by floor-rela
 
 The pair objective gains optional cancellation-free triplet and quadruplet sectors:
 
-```
-E = E_2 + lambda3 * E_3 + lambda4 * E_4,     E_k = SUM_c SUM_tau | C_c(tau)/I_c - p(tau) |
-```
+$$E = E_2 + \lambda_3 E_3 + \lambda_4 E_4, \qquad E_k = \sum_{c} \sum_{\tau} \bigl|\, C_c(\tau)/I_c - p(\tau) \,\bigr|$$
 
 The classes `c` partition the k-site clusters of the UNDECORATED geometry whose edges all fit a
 cutoff radius (`multiplets.shell3/shell4` name the zone the radius spans), keyed by the sorted
@@ -136,17 +126,17 @@ archive, the [D6] mutation and the reproducibility contract carry over unchanged
 `C_c(tau)/I_c` are unaffected by the uniform multiplicity. `p(tau)` is the multinomial target on
 the achieved composition; per-class quantization gives a per-sector floor **bound** (the sectors
 couple through the single decoration, so unlike §4.1 it need not be attained; T-M2 verifies both
-directions). With sectors on, the logged `E_floor` (and the `e_tol: auto` base) is the exact pair
+directions). With sectors on, the logged $E_{\mathrm{floor}}$ (and the `e_tol: auto` base) is the exact pair
 floor plus the lambda-weighted sector bounds.
 
 Class inventories are a lattice fingerprint (T-M1 pins them): bcc within two zones has exactly one
-triangle class — the (r1,r1,r2) isosceles, 12 per site — and one quad, the r1^4·r2^2 disphenoid
+triangle class — the $(r_1, r_1, r_2)$ isosceles, 12 per site — and one quad, the $r_1^4 r_2^2$ disphenoid
 (6 per site); nothing is equilateral and the NN-only cutoff admits nothing at all. fcc at the NN
 cutoff has the equilateral triangle (8 per site) and the regular tetrahedron (2 per site).
 
-Config (`error.multiplets`): `lambda3`, `lambda4` (>= 0, default 0 = the pair-only engine,
+Config (`error.multiplets`): `lambda3`, `lambda4` ($\ge 0$, default 0 = the pair-only engine,
 bitwise), `shell3` (default 2), `shell4` (default 1). The knobs enter the trajectory signature
-only when a lambda is nonzero, so pair-only checkpoints from <= v1.8 stay resumable. Cost: the
+only when a $\lambda$ is nonzero, so pair-only checkpoints from <= v1.8 stay resumable. Cost: the
 counting kernel is serial per candidate (the engine parallelizes across candidates); gates:
 T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
 
@@ -156,15 +146,15 @@ T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
   `symprec` default `1e-5` Å, logged. **[A6]**
 - Filter policy (Alg. 1:4, 1:21), configurable: default `reject_p1` = reject iff space-group
   number 1 (P1). Options: `min_sg_index N`, explicit whitelist, `min_pointgroup_order N`. **[A7]**
-- P1-elite quota `q ≥ 0` (paper's "small ≪ P best P1 structures" variant); default `q = 0`. **[A8]**
+- P1-elite quota $q \ge 0$ (paper's "small ≪ P best P1 structures" variant); default $q = 0$. **[A8]**
 - Every emitted structure records: SG number + international symbol, symprec used, point-group order,
   number of inequivalent sites.
 
 ## 6. Displacement count D
 
-- **[A15] Pinned convention** *(Q1 resolution)*: `D(σ)` := the number of displaced supercells
-  phonopy generates for σ used *directly as the phonon supercell* (`supercell_matrix = 1`) with
-  **default settings** (`is_diagonal = True`, `is_plusminus = 'auto'`). Displacement distance is
+- **[A15] Pinned convention** *(Q1 resolution)*: $D(\sigma)$ := the number of displaced supercells
+  phonopy generates for σ used *directly as the phonon supercell* ($supercell_matrix = 1$) with
+  **default settings** ($is_diagonal = True$, $is_plusminus = 'auto'$). Displacement distance is
   irrelevant to the count. Any alternative convention in the future is a *new* enum value of
   `displacements.convention`, never a redefinition of `phonopy_default`.
 - Implementation: native C++ from the spglib symmetry dataset — inequivalent atoms
@@ -181,10 +171,10 @@ T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
   supercell (lattice translations of H-cell × point ops of the empty supercell), acting on site
   indices. **[A9]**
 - Canonical form: precompute the permutation group Π of the undecorated supercell once (from
-  spglib on the empty cell); canonical label = lexicographic minimum of `π(σ)` over `π ∈ Π`;
+  spglib on the empty cell); canonical label = lexicographic minimum of $\pi(\sigma)$ over $\pi \in \Pi$;
   dedup via 128-bit hash of the canonical label, hash set per island + merge at output. Cost is
-  `O(|Π|·N)` per new structure — acceptable at these sizes; a cheap invariant pre-filter
-  (composition + per-shell `C_{t,t'}(n)` vector) short-circuits most comparisons. **[A10]**
+  $O(|\Pi|\cdot N)$ per new structure — acceptable at these sizes; a cheap invariant pre-filter
+  (composition + per-shell $C_{t,t'}(n)$ vector) short-circuits most comparisons. **[A10]**
 - Rare hash collisions: accepted risk (verify by full compare on collision).
 
 ## 8. Evolutionary operators and termination
@@ -196,16 +186,16 @@ T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
     (subset-sum over orbit sizes, DP solver); guarantees symmetry ⇒ immune to the
     rejection-collapse failure mode at large N.
 - **Evaluation**: `E_obj` for every population member (embarrassingly parallel).
-- **Extinction** (Alg. 1:14–17): survival probability `E_min/E_i` (`ratio`, default) or
-  `min(1, exp(−β(E_i − E_min)))` (`metropolis`). β: fixed value or `auto` =
+- **Extinction** (Alg. 1:14–17): survival probability $E_{\mathrm{min}}/E_i$ (`ratio`, default) or
+  $min(1, exp(-\beta(E_i - E_{\mathrm{min}})))$ (`metropolis`). β: fixed value or `auto` =
   `ln 2 / median(E_i − E_min)` recomputed each generation (median structure survives 50%);
   optional geometric schedule. **[A11]** v1.5 makes the schedule normative: with a numeric β,
-  `β_g = β·growth^g` (`survival.schedule: geometric`, `beta_growth > 0`); `beta: auto`
+  $\beta_g = \beta\cdot growth^g$ (`survival.schedule: geometric`, `beta_growth > 0`); `beta: auto`
   recomputes per generation and rejects the schedule (loud-fail config policy).
 - **[D5]** The current best-by-`E_obj` always survives (`elitism_best = 1`) ⇒ `E_min` monotone.
   (Paper does not state this; without it the stochastic extinction can lose the optimum.)
 - **Repopulation**: parent = uniform random survivor; mutation = `k` composition-preserving swaps
-  of unlike-species site pairs (`k = 1` default; option `k ~ 1 + Poisson(λ)`); accept offspring iff
+  of unlike-species site pairs ($k = 1$ default; option $k ~ 1 + Poisson(\lambda)$); accept offspring iff
   passes filter + unique; retry budget per slot (default 100), then fall back to constructive
   seeding for that slot. **[A12]**
   - Optional `symmetry_preserving: true`: swap species assignments between equal-size orbits of a
@@ -213,10 +203,10 @@ T-M1..T-M4 (`[multiplets]`) + T-M5 (MPI rank invariance, sectors on).
     mutate→P1→reject loop). Recommended default `true`, with plain swaps as fallback. **[D6]**
 - **Termination [D7]:** disambiguation of Alg. 1:9–12 (E "includes displacements", success tests
   `E_min/D_min`): selection pressure uses `E_obj`; success is declared when
-  `min_i E_pure(σ_i) ≤ E_tol` (the tolerance certifies "is a proper SQS"; D only steers selection).
+  $min_i E_{\mathrm{pure}}(\sigma_i) \le E_{\mathrm{tol}}$ (the tolerance certifies "is a proper SQS"; D only steers selection).
   Additional caps: `max_generations`, wall-time budget → checkpoint + best-effort output. **[A13]**
   v1.1 adds a *stagnation stop*: if repopulation degenerates to all-fallback seeding
-  (`fb ≥ vacancies`) for `stagnation_stop` consecutive generations (default 3), the island
+  ($fb \ge vacancies$) for `stagnation_stop` consecutive generations (default 3), the island
   stops with reason `stagnation`.
 - **Output set [D8]:** Alg. 1:2's outer loop is realized as: each island evolves a population of
   size P; the M outputs are the best M *pairwise-inequivalent* structures pooled across
@@ -269,9 +259,9 @@ bit-exactness claims, as in v1.2.
 
 ## 9. Composition handling
 
-- `N_t = round(x_t·N)` by largest-remainder so `Σ N_t = N`; achieved `x̃_t` logged and used as the
-  correlation target **[A5]**. Hard error if `|x̃_t − x_t| > comp_tol` (default 0.02).
-- Consistency check vs paper: 70:30 on 128 sites → W₉₀Cr₃₈ (x̃ = 0.7031/0.2969) — matches the
+- $N_t = round(x_t\cdot N)$ by largest-remainder so $\sum N_t = N$; achieved $\tilde{x}_t$ logged and used as the
+  correlation target **[A5]**. Hard error if $|\tilde{x}_t - x_t| > comp_tol$ (default 0.02).
+- Consistency check vs paper: 70:30 on 128 sites $\to$ $\mathrm{W_{90}Cr_{38}}$ ($\tilde{x} = 0.7031/0.2969$) — matches the
   paper's stated supercell.
 - Constructive seeding feasibility: composition must be a subset-sum of orbit sizes for the chosen
   G; infeasible G are skipped (logged).
@@ -321,16 +311,16 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | ID | Level | Content | Acceptance |
 |----|-------|---------|-----------|
 | T-G1 | unit | Shell radii + coordination sequences, sc/bcc/fcc (bcc: 8,6,12,24,8; fcc: 12,6,24,12,24) | exact |
-| T-G2 | unit | Pair table: `zone(i,j)=zone(j,i)`, `C_{t,t'}=C_{t',t}`, self excluded, `Σ_i n_i(n)=N·Z_n` | exact |
-| T-C1 | unit | B2 (CsCl) decoration: `Π_{t,t}(1)=0`, `Π_{t,t}(2)=1`; hand-computed E_pure | exact |
+| T-G2 | unit | Pair table: $zone(i,j)=zone(j,i)$, $C_{t,t'}=C_{t',t}$, self excluded, $\sum_i n_i(n)=N\cdot Z_n$ | exact |
+| T-C1 | unit | B2 (CsCl) decoration: $\Pi_{t,t}(1)=0$, $\Pi_{t,t}(2)=1$; hand-computed $E_{\mathrm{pure}}$ | exact |
 | T-C2 | unit | L1₀ and L1₂ on fcc: analytic Π per shell | exact |
-| T-C3 | statistical | 10⁴ random canonical decorations: mean `Π_{t,t}(n) = (N_t−1)/(N−1)` | within 3σ |
-| T-C4 | unit | K=2 mode identity: `E_full = 2·E_diag` on random decorations | ≤ 1e-15 rel |
+| T-C3 | statistical | 10⁴ random canonical decorations: mean $\Pi_{t,t}(n) = (N_t-1)/(N-1)$ | within 3σ |
+| T-C4 | unit | K=2 mode identity: $E_{\mathrm{full}} = 2\cdot E_{\mathrm{diag}}$ on random decorations | ≤ 1e-15 rel |
 | T-S1 | unit | SG detection: B2→221, L1₀→123, L1₂→221, pure bcc supercell→229; wrapper vs pymatgen | exact |
 | T-S2 | unit | Dedup: translated/rotated copies collide; 10⁴ random distinct pairs don't (fuzz) | exact / no false-pos |
 | T-D1 | unit (gate) | D-count vs `phonopy` on ≥12 cells: pure, B2, L1₀, L1₂, and low-symmetry SQS incl. C2/Amm2-class | exact match |
-| T-E1 | integration | W₇₀Cr₃₀ bcc 4×4×4 (binary), `gamma=0`: reaches `E_pure ≤ e_tol(auto) = 3.0×E_floor` (§4.1) and ≥ M unique non-P1 outputs within budget | pass |
-| T-E2 | integration | same, `gamma=1`: best output has `D ≤ D(P1 reference)/3` at `E_pure ≤ 3×e_tol(auto)` (v1.1 reading of “within ~3× of T-E1 best”) | pass |
+| T-E1 | integration | W₇₀Cr₃₀ bcc 4×4×4 (binary), `gamma=0`: reaches $E_{\mathrm{pure}} \le e\_tol(\mathrm{auto}) = 3.0\times E_{\mathrm{floor}}$ (§4.1) and ≥ M unique non-P1 outputs within budget | pass |
+| T-E2 | integration | same, `gamma=1`: best output has `D ≤ D(P1 reference)/3` at $E_{\mathrm{pure}} \le 3\times e\_tol(\mathrm{auto})$ (v1.1 reading of “within ~3× of T-E1 best”) | pass |
 | T-R1 | reproducibility | same seed/config, 1 vs 16 threads, 1 vs 4 islands re-run: identical trajectories/outputs | bit-exact |
 | T-V1 | cross-validation | `validate.py` (pymatgen/numpy) recomputes E_pure of every emitted structure | ≤ 1e-10 abs diff |
 | T-B1 | benchmark | evaluations/s vs N (54…1024 sites); OMP scaling on one node; island scaling 1→32 ranks | recorded, no gate |
@@ -340,7 +330,7 @@ output:     {dir: ./run1, formats: [poscar], checkpoint_every: 100, log_level: i
 | T-K1 | reproducibility (v1.3) | budget-stop → `--resume` chain vs uninterrupted run (migration boundary crossed) | bit-exact |
 | T-K2 | unit (v1.3) | resume refuses trajectory-signature mismatch; raising budget caps allowed | pass |
 | T-MPI1 | reproducibility (v1.3) | serial vs `mpirun -n 1` vs `-n 3`: outputs, logs, migration ledger | bit-exact |
-| T-E3 | integration (v1.4) | ternary bcc W₆₄Mo₃₂Cr₃₂ (`full_pairs` [A16]): `E_pure ≤ 1.2e-1`, non-P1, composition preserved | pass |
+| T-E3 | integration (v1.4) | ternary bcc W₆₄Mo₃₂Cr₃₂ (`full_pairs` [A16]): $E_{\mathrm{pure}} \le 1.2e-1$, non-P1, composition preserved | pass |
 | T-X1 | unit (v1.5) | `score_structure` reproduces engine records bit-exactly; input site order free; loud mismatch errors | pass |
 | T-A11 | unit (v1.5) | geometric β schedule: growth 1.0 ≡ const bitwise; growth > 1 diverges deterministically | pass |
 | T-CO1 | audit (v1.6) | spec↔code↔tests↔configs↔docs coherence: versions, §12 id citations, tag coverage, signature field ledger, §11 sample + configs execute, README refs | pass |
@@ -354,7 +344,7 @@ until then K ≥ 3 runs print an `experimental` banner.
 D1 normalizer = pairs with central atom of type t; D2 line 20 is `-=`; D3 γ-exponent
 generalization of the ×D penalty; D4 constructive (subgroup-orbit) seeding added alongside
 rejection; D5 best-structure elitism added; D6 symmetry-preserving mutation added; D7 termination
-= `min E_pure ≤ E_tol` with selection on `E_obj`, plus generation/wall-time caps; D8 outer loop
+= $min E_{\mathrm{pure}} \le E_{\mathrm{tol}}$ with selection on `E_obj`, plus generation/wall-time caps; D8 outer loop
 realized as island pooling of M unique outputs.
 
 Each deviation is either paper-faithful under a config switch or strictly additive; defaults are
@@ -364,7 +354,7 @@ chosen to reproduce the paper's setup where the pseudocode is unambiguous.
 
 | # | Question | Resolution |
 |---|----------|-----------|
-| Q1 | D-count convention | **phonopy defaults** (`is_plusminus='auto'`, `is_diagonal=True`, supercell used as-is) → **[A15]** |
+| Q1 | D-count convention | **phonopy defaults** ($is_plusminus='auto'$, $is_diagonal=True$, supercell used as-is) → **[A15]** |
 | Q2 | K-ary error mode default | **auto: diagonal for K=2, full_pairs for K≥3** → **[A16]** |
 | Q3 | v1 validated scope | **Binary first, K-ary later** → §1, §12 |
 
@@ -385,9 +375,9 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 ## 16. Changelog
 
 - **v1.9 (2026-07-17)** — multiplet correlation sectors (§4.2): optional triplet/quadruplet
-  L1 sectors over Π-invariant cluster classes, `E = E_2 + λ3·E_3 + λ4·E_4`; per-sector floor
+  L1 sectors over Π-invariant cluster classes, $E = E_2 + \lambda_3\cdot E_3 + \lambda_4\cdot E_4$; per-sector floor
   bounds; sector-aware `score`; signature guard extended (pair-only checkpoints unaffected);
-  gates T-M1…T-M5. λ3 = λ4 = 0 (default) is bit-identical to v1.8.
+  gates T-M1…T-M5. $\lambda_3 = \lambda_4 = 0$ (default) is bit-identical to v1.8.
 
 - **v1.8 (2026-07-15)** — housekeeping release: repository-wide `*.tex` ignore (manuscript and
   presentation sources live outside the code history); first public mirror at
@@ -397,11 +387,11 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
   generation). No engine behaviour changes; trajectories bit-identical to v1.7.1.
 
 - **v1.7 (2026-07-12, post-release note 3)** — 16-cell supercell scan (2×2×2 → 7×7×7, K = 5
-  equiatomic bcc, γ ∈ {0, 1}; docs/SUPERCELL_STUDY.md): the floor law **E_floor = 0 ⟺ 25 | N**
+  equiatomic bcc, $\gamma \in \{0, 1\}$; docs/SUPERCELL_STUDY.md): the floor law **$E_{\mathrm{floor}} = 0 \iff 25 \mid N$**
   holds on all sixteen cells; equiatomic x = 1/5 is unrepresentable within `comp_tol` below 54
-  sites; the γ = 1 ordered-compound collapse (Cmcm, D = 10, E_pure = 7.938889 bit-identical at
-  200 and 300 sites) reproduces exactly on the two 5,5-axis cells and nowhere else; at ≥ 504
-  sites γ = 1 reaches 4× displacement reductions at correlation error equal to or better than
+  sites; the $\gamma = 1$ ordered-compound collapse (Cmcm, $D = 10$, $E_{\mathrm{pure}} = 7.938889$ bit-identical at
+  200 and 300 sites) reproduces exactly on the two 5,5-axis cells and nowhere else; at $\ge 504$
+  sites $\gamma = 1$ reaches 4× displacement reductions at correlation error equal to or better than
   γ = 0.
 - **v1.7 (2026-07-10, post-release note 2)** — supercell study fix: `--resume` without
   `--out` silently retargeted outputs and subsequent state saves to the config's `output.dir`
@@ -410,7 +400,7 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
 - **v1.7 (2026-07-08, post-release note)** — K = 5 exercise (HEA session): equiatomic bcc
   MoNbTaVW (Mo₂₆Nb₂₆Ta₂₆V₂₅W₂₅, 128 sites) run end-to-end; **T-V1 at K = 5 passes with
   |diff| = 0** (`tools/py/validate.py` independently reproduces every `full_pairs` energy).
-  Finding: E_floor = 8.0379e-2 — ~25× the binary floor; the K = 3 dyadic zero-floor phenomenon
+  Finding: $E_{\mathrm{floor}} = 8.0379 \times 10^{-2}$ — $\sim 25\times$ the binary floor; the K = 3 dyadic zero-floor phenomenon
   does not recur at K = 5.
 - **v1.7 (2026-07-03)** — step-8 release 1.7.0:
   - `exsqs geom` writes the undecorated supercell frame; `tools/py/align_to_config.py`
@@ -441,7 +431,7 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
     code must stay mutually current.
 - **v1.5 (2026-06-09)** — step-6 interoperability + spec completion:
   - **`exsqs score`** subcommand (score.hpp): evaluates external POSCARs on the config geometry —
-    E_pure, E/E_floor, D, D(P1)/D, SG, E_obj — with free input site order (coordinate matching),
+    $E_{\mathrm{pure}}$, $E/E_{\mathrm{floor}}$, $D$, $D(P1)/D$, SG, $E_{\mathrm{obj}}$ — with free input site order (coordinate matching),
     strict lattice/species/composition checks, and optional `--json`. This operationalizes the
     §4.1 doctrine: cross-code comparisons happen on raw structures (paper/ATAT outputs), never on
     reported scalars. T-X1 pins bit-exact agreement with the engine's own records.
@@ -453,14 +443,14 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
     prototype deferral pragmatically.
 - **v1.4 (2026-05-19)** — step-5 validation + release:
   - **K ≥ 3 validated end-to-end**: [A16] `mode: auto → full_pairs` exercised; the §4.1 floor is
-    K-general (K=2's exact `full = 2×diag` identity does not extend); constructive seeding, orbit
+    K-general (K=2's exact $full = 2\times diag$ identity does not extend); constructive seeding, orbit
     mutation and the canonical dedup are species-count-agnostic; T-V1 reproduces the K=3
     full-pairs error at |diff| = 0. New reference config `w50mo25cr25_4x4x4.yaml` and tests
     (`[ternary]`, incl. T-E3).
-  - §4.1 note: commensurate compositions give `E_floor = 0` exactly (dyadic x on bcc 4×4×4);
+  - §4.1 note: commensurate compositions give $E_{\mathrm{floor}} = 0$ exactly (dyadic x on bcc 4×4×4);
     use a numeric `e_tol` there.
   - Campaigns recorded (single-core container scale): binary flagship (6 islands + migration,
-    β = 3000) reconfirms 2.50×E_floor with rc = 0 in 102 s / 14.8k evals; the β = 800 + migration
+    $\beta = 3000$) reconfirms $2.50 \times E_{\mathrm{floor}}$ with rc = 0 in 102 s / 14.8k evals; the $\beta = 800$ + migration
     resume chain is stagnation-terminated near generation 50 at 3.61× — exploitation regimes are
     exhaustion-limited by design, so the genuine long-budget frontier belongs to the
     non-exhausting survival modes on multi-core hardware. Ternary campaign best:
@@ -491,16 +481,16 @@ and the T-D1 phonopy gate, over `lattice` → `structure` → `zones` → `corre
     checkpoint/restart foundation for step 4). MPI multi-node island scaling ("ranks" in T-B1)
     is deferred to the HPC step; `exsqs_bench_scaling` records single-node numbers.
 - **v1.1 (2026-03-10)** — step-2 integration findings:
-  - §4.1: quantization floor `E_floor` defined, computed and logged; **the paper's absolute error
+  - §4.1: quantization floor $E_{\mathrm{floor}}$ defined, computed and logged; **the paper's absolute error
     scale is not reproducible from Alg. 2** (reported 2.92e-4 < floor 3.246e-3 for its own
     reference system) — cross-code comparisons go via raw structures only (T-V1).
-  - §11: `e_tol: auto` (= 3.0×E_floor) is the new default; numeric values below E_floor trigger an
+  - §11: `e_tol: auto` ($= 3.0 \times E_{\mathrm{floor}}$) is the new default; numeric values below $E_{\mathrm{floor}}$ trigger an
     infeasibility warning. §12 T-E1/T-E2 acceptance re-pinned floor-relative.
   - [A12]: Poisson swap-count option implemented (`swaps: poisson`, `lambda`; k ~ 1+Poisson(λ)).
   - [A13]: stagnation early-stop (all-fallback repopulation × `stagnation_stop` generations).
   - [D6] refined: H = cyclic ⟨g⟩ of one randomly chosen nontrivial parent op per move, replacing
     the full-stabilizer variant, which ratchets symmetry monotonically upward and traps the search
     in high-symmetry strata (empirical stall at ~5× floor; see STEP2_REPORT).
-  - Empirical serial reference (seed 42): 4 islands × metropolis β=3000 reach 2.50×E_floor
-    (E_pure = 8.11e-3, SG 8/Cm) on W₉₀Cr₃₈; the productive island crossed the gate at gen 10.
+  - Empirical serial reference (seed 42): 4 islands $\times$ metropolis $\beta = 3000$ reach $2.50 \times E_{\mathrm{floor}}$
+    ($E_{\mathrm{pure}} = 8.11 \times 10^{-3}$, SG 8/Cm) on W₉₀Cr₃₈; the productive island crossed the gate at gen 10.
 - **v1.0 (2026-02-16)** — frozen after step-0 sign-off (§14).
