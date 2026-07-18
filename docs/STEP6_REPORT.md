@@ -13,8 +13,8 @@ T-E1/T-E2/T-E3 pass; T-MPI1 and all T-V1 instances hold at |diff| = 0.
 ## 1. `exsqs score` — raw-structure comparison, operational
 
 The new subcommand evaluates any POSCAR on a config's geometry with the config's zones, weights,
-error mode and γ: `exsqs score <config> [--set ...] <files...> [--json PATH]` prints E_pure,
-E/E_floor, D, D(P1)/D, SG and E_obj per structure. Input site *order* is free (sites are matched
+error mode and $\gamma$: `exsqs score <config> [--set ...] <files...> [--json PATH]` prints $E_{\mathrm{pure}}$,
+$E/E_{\mathrm{floor}}$, D, $D(P1)/D$, SG and $E_{\mathrm{obj}}$ per structure. Input site *order* is free (sites are matched
 by wrapped fractional coordinate); lattice orientation, species names and the [A5] composition
 must match the config and fail loudly otherwise. The API (`score_structure` in `score.hpp`) is
 gated by **T-X1**: scoring the engine's own outputs reproduces every recorded value bit-exactly,
@@ -23,7 +23,7 @@ including through a full POSCAR write/read round trip, and including under site 
 The demonstration is the comparison table this project was built to enable — one command, three
 structures on the reference system:
 
-| structure | E_pure | E/E_floor | D | D(P1)/D | SG |
+| structure | $E_{\mathrm{pure}}$ | $E/E_{\mathrm{floor}}$ | D | $D(P1)/D$ | SG |
 |---|---|---|---|---|---|
 | random decoration (baseline) | 5.105e-2 | 15.73× | 768 | 1.00 | P1 |
 | campaign champion | 8.112e-3 | **2.50×** | 416 | 1.85 | Cm |

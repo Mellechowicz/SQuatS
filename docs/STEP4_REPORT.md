@@ -18,7 +18,7 @@ ledgers — the 1.1.0 sequential engine, the lockstep OpenMP engine at any threa
 driver at any rank count, and any chain of budget-limited segments stitched with `--resume`.
 Concretely verified: T-K1 splits a 12-generation two-island sc27 run at generation 5 (a
 migration round falls at 6, *after* the split) and matches the uninterrupted run field-for-field;
-the W₉₀Cr₃₈ CLI demo does the same at 30 generations split 15+15 with migration every 10 rounds
+the $\mathrm{W_{90}Cr_{38}}$ CLI demo does the same at 30 generations split 15+15 with migration every 10 rounds
 (ledger `[2, 2]` in both, best 1.2701e-2 = 3.91× floor); T-MPI1 matches serial vs `mpirun -n 1`
 vs `-n 3` including full per-generation logs; and the W-system MPI demo reproduces the serial
 best (1.820570e-2) exactly from 3 ranks. Wall-capped stops remain the one deliberate exclusion —
@@ -69,7 +69,7 @@ MPI template includes a commented self-resubmission block keyed to the exit-code
 (0 = `e_tol` reached, 3 = budget exhausted with state kept). `scripts/chain_resume.sh` is the
 login-node/local variant: it loops run → resume until success or `MAX_SEGMENTS`, and because of
 T-K1 the chain is provably the same trajectory as one long run. The floor-relative metric
-(E/E_floor, logged at startup and in `summary.json`) is the scale-free convergence measure for
+($E/E_{\mathrm{floor}}$, logged at startup and in `summary.json`) is the scale-free convergence measure for
 those long campaigns.
 
 ## 5. Evidence summary
@@ -79,8 +79,8 @@ those long campaigns.
 | T-K1 (test) | sc27, 2 islands, migration every 3, split 5/12 | bit-exact vs straight run |
 | T-K2 (test) | sc27 | seed change refused ("signature"); a cap raise resumes the run |
 | T-MPI1 (ctest) | sc27, 3 islands | serial ≡ 1 rank ≡ 3 ranks (outputs, logs, ledger) |
-| chain demo | W₉₀Cr₃₈, 2 islands, β=3000, 30 gens split 15+15 | bit-exact incl. ledger `[2,2]`; best 3.91× floor |
-| MPI demo | W₉₀Cr₃₈, 3 islands, 6 gens | serial ≡ 3 ranks (best 1.820570e-2) |
+| chain demo | $\mathrm{W_{90}Cr_{38}}$, 2 islands, β=3000, 30 gens split 15+15 | bit-exact incl. ledger `[2,2]`; best 3.91× floor |
+| MPI demo | $\mathrm{W_{90}Cr_{38}}$, 3 islands, 6 gens | serial ≡ 3 ranks (best 1.820570e-2) |
 | e2e regression | T-E1/T-E2 | pass — reference trajectories unchanged through the v1.3 driver |
 
 ## 6. Deferrals and Step-5 handoff
@@ -88,7 +88,7 @@ those long campaigns.
 Deliberately out of v1.3 scope: heterogeneous or big-endian clusters (guarded, not supported),
 mid-run JSON checkpoints under MPI, and topology-comparability of wall-capped stops. What remains
 of the overall plan: the long-budget validation campaign — multi-node, multi-hour chained runs on
-W₇₀Cr₃₀ and larger/K≥3 systems, tracking E/E_floor and D against the paper's claims, with
+$\mathrm{W_{70}Cr_{30}}$ and larger/K≥3 systems, tracking $E/E_{\mathrm{floor}}$ and D against the paper's claims, with
 `validate.py` as the scale-proof cross-check — plus release polish (CI, packaging, docs) to make
 the repository public-ready. The machinery for all of it now exists; step 5 will validate the
 multicomponent path and consolidate the verification matrix.

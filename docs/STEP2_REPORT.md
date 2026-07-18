@@ -3,7 +3,7 @@
 Date 2026-03-11. Scope per SPEC §15: completing the extinction-based evolution engine over the
 released 1.0.0 core — constructive seeding, the P1 filter, symmetry-preserving mutation,
 stagnation termination — with serial end-to-end runs on the paper's reference system
-W₇₀Cr₃₀ → W₉₀Cr₃₈ (bcc 4×4×4, 128 sites), the independent Python validator, and the throughput
+$\mathrm{W_{70}Cr_{30}}$ → $\mathrm{W_{90}Cr_{38}}$ (bcc 4×4×4, 128 sites), the independent Python validator, and the throughput
 benchmark. Everything from the 1.0.0 core library and its suites (the phonopy-exact displacement
 gate included) is unchanged and still green.
 
@@ -15,24 +15,24 @@ combined, one worker thread); **T-R1** bit-exact reproducibility passing; **T-V1
 ## 1. The central finding: the error function has a provable floor, and the paper's absolute scale sits below it
 
 The frozen error function (paper Alg. 2, confirmed against the full paper text: line 21 is
-`𝔈 += A_n·|Π−x|`, "no error cancellation") is an L1 sum of per-(shell, species) deviations. Each
-counter `C` is an integer while the normalizer `P_t(n) = N_t·Z_n` is fixed by composition and
+$\mathfrak{E} += A_n\cdot |\Pi-x|$, "no error cancellation") is an L1 sum of per-(shell, species) deviations. Each
+counter `C` is an integer while the normalizer $P_t(n) = N_t\cdot Z_n$ is fixed by composition and
 geometry, so every term is bounded below by `dist(x̃_t·P_t(n), ℤ)/P_t(n)` and therefore
 
-    E_floor = Σ_n A_n Σ_t dist(x̃_t·P_t(n), ℤ)/P_t(n).
+    $$E_{\mathrm{floor}} = \sum_n A_n \sum_t \mathrm{dist}(\tilde{x}_t \cdot P_t(n), \mathbb{Z}) / P_t(n).$$
 
-For W₉₀Cr₃₈ / bcc 4×4×4 / 7 shells / A_n = 1/n this evaluates to **E_floor = 3.246e-3** (verified
+For $\mathrm{W_{90}Cr_{38}}$ / bcc $4{\times}4{\times}4$ / 7 shells / $A_n = 1/n$ this evaluates to **$E_{\mathrm{floor}} = 3.246 \times 10^{-3}$** (verified
 analytically and numerically; the 1.0.0 engine already computed it, and this step promotes it to
-the acceptance criterion). The paper reports 𝔈 = 2.01e-4 (best ATAT P1) and 2.92e-4 (its C2
+the acceptance criterion). The paper reports $\mathfrak{E} = 2.01 \times 10^{-4}$ (best ATAT P1) and $2.92 \times 10^{-4}$ (its C2
 champion) *for this very system* — an order of magnitude below the bound. In fact the single
 shell-1 chromium term alone cannot go below 0.25/304 = 8.22e-4. The paper's reported scalar must
 therefore carry an unstated normalization (a per-term mean, ≈ E/14, would land exactly in its
-range), so **absolute 𝔈 values are not comparable across codes**; all comparisons must recompute
+range), so **absolute $\mathfrak{E}$ values are not comparable across codes**; all comparisons must recompute
 the error on raw structures — which is exactly what `tools/py/validate.py` (T-V1) does.
 
 Consequences, adopted as SPEC v1.1 (changelog in SPEC §16): absolute thresholds inherited from
 the paper's scale (`e_tol: 3e-4`, an absolute `1e-3` for T-E1) are mathematically infeasible on
-this cell. `e_tol: auto` resolves to `3.0×E_floor`, a numeric `e_tol` below the floor triggers an
+this cell. `e_tol: auto` resolves to $3.0\times E_{\mathrm{floor}}$, a numeric `e_tol` below the floor triggers an
 infeasibility warning, and the §12 acceptance gates are floor-relative. A greedy 2-site
 hill-climb (no symmetry constraint) reaches 1.17–1.56× floor within seconds, calibrating what
 "good" means in these units; the paper's C2 ratio to ATAT (2.92/2.01 ≈ 1.45) suggests its
@@ -49,8 +49,8 @@ population alone, at ~1.2 s for 200 admissions. Filtration admits a candidate on
 canonical label (lex-min over the 6,144-element empty-cell permutation group) is new to the
 island archive and its space group is not P1 (with the [A8] quota honored); one spglib call per
 candidate serves the filter, the displacement count D (phonopy-exact port, dataset reused), and
-the stored stabilizer operations. Evaluation computes E_pure in the active mode and
-E_obj = E_pure·D^γ [D3]. Extinction implements both [A11] modes with [D5] elitism; repopulation
+the stored stabilizer operations. Evaluation computes $E_{\mathrm{pure}}$ in the active mode and
+$E_{\mathrm{obj}} = E_{\mathrm{pure}} \cdot D^{\gamma}$ [D3]. Extinction implements both [A11] modes with [D5] elitism; repopulation
 follows [A12] exactly: uniform survivor parent, mutation, admit-or-retry (budget 100), then
 constructive fallback for the slot. All randomness flows through the counter-based generator
 keyed by (seed, island, generation, slot, purpose) [A14] — a SplitMix64-derived stream (PCG-class
@@ -69,7 +69,7 @@ implemented.
 
 ## 3. Search-dynamics study (why the defaults plateau, and the serial recipes)
 
-All probes: γ = 0, seed 42, one worker thread; values in units of E_floor.
+All probes: γ = 0, seed 42, one worker thread; values in units of $E_{\mathrm{floor}}$.
 
 | survival | population | best/floor reached | behavior |
 |---|---|---|---|
@@ -94,18 +94,18 @@ Step-3 parallel layer will scale.
 ## 4. Acceptance results (SPEC §12, v1.1)
 
 T-E1 (γ=0): 4 islands × metropolis β=3000, population 100, ≤25 generations each, `e_tol: auto`
-(= 9.738e-3). Island 3 succeeds at generation 10 with **E_pure = 8.112e-3 = 2.50× E_floor**,
+(= 9.738e-3). Island 3 succeeds at generation 10 with **$E_{\mathrm{pure}}$ = 8.112e-3 = $2.50 \times E_{\mathrm{floor}}$**,
 SG 8 (Cm), D = 416; five pairwise-inequivalent non-P1 outputs pooled. T-E2 (γ=1): spec-default
-ratio survival, population 64, 300 generations: best-by-E_obj output is **P4mm with D = 128 —
+ratio survival, population 64, 300 generations: best-by-$E_{\mathrm{obj}}$ output is **P4mm with D = 128 —
 six-fold fewer displacements than the P1 reference 768** (paper claims ≈ 5×) — at
-E_pure = 2.788e-2 = 8.59× floor, inside the 3×e_tol bound (margin 4.6%; the run is seed-pinned
+$E_{\mathrm{pure}}$ = 2.788e-2 = 8.59× floor, inside the 3×e_tol bound (margin 4.6%; the run is seed-pinned
 and bit-reproducible, but the thin margin is noted for maintenance). The high-pressure γ=1 runs
 additionally chart the Pareto extremes: an R-3m structure with **D = 40 (19.2× fewer than P1)**
-at E_pure = 35.7× floor carries nearly the same E_obj (4.64 vs 3.57) as the knee — the flatness
+at $E_{\mathrm{pure}}$ = 35.7× floor carries nearly the same $E_{\mathrm{obj}}$ (4.64 vs 3.57) as the knee — the flatness
 of the E·D front is a genuine property of the objective worth knowing for production use.
 
 T-R1: two full runs (islands = 2) are field-identical bitwise; a third with a different seed
-diverges. T-V1: the independent numpy/pymatgen recomputation of E_pure matches the engine with
+diverges. T-V1: the independent numpy/pymatgen recomputation of $E_{\mathrm{pure}}$ matches the engine with
 worst |diff| = 0.0 (gate 1e-10) on the emitted structures of the demo runs. T-B1 (one worker
 thread, symprec 1e-5, per-evaluation cost = canonical + spglib + D + correlations):
 
@@ -123,15 +123,15 @@ invariant pre-filter remains an available optimization if it ever matters.
 ## 5. Usage
 
 `./build/exsqs configs/w70cr30_4x4x4.yaml [--set key.path=value ...] [--out DIR]`. Exit codes:
-0 success (min E_pure ≤ effective e_tol), 3 budget exhausted (best-effort outputs written),
+0 success (min $E_{\mathrm{pure}}$ ≤ effective e_tol), 3 budget exhausted (best-effort outputs written),
 1 error. The reference config is SPEC §11 verbatim with `e_tol: auto`. The serial exploitation
 recipe from §3/§4: `--set parallel.islands=4 --set evolution.population=100
 --set evolution.max_generations=25 --set evolution.survival.mode=metropolis
 --set evolution.survival.beta=3000`; add `--set error.gamma=1` to chase low-D structures at the
 Pareto extremes, or keep the ratio default for the (D, E) knee. Outputs per run:
-`best_XX.vasp` (species-grouped POSCARs with E_pure/D/E_obj/SG/point-group order/inequivalent
+`best_XX.vasp` (species-grouped POSCARs with $E_{\mathrm{pure}}$/D/$E_{\mathrm{obj}}$/SG/point-group order/inequivalent
 sites in the comment), `generations.csv`, `summary.json` (config echo, achieved composition,
-E_floor, effective e_tol, spglib version, displacement convention, per-output records), and
+$E_{\mathrm{floor}}$, effective e_tol, spglib version, displacement convention, per-output records), and
 `checkpoint.json` snapshots every `checkpoint_every` generations. Validate any run directory with
 `python3 tools/py/validate.py <dir>`.
 
@@ -154,5 +154,5 @@ The dynamics study makes the parallel step concrete: island processes with elite
 the basin-diversity bottleneck quantified in §3 (best-of-basins is where the serial result came
 from), OpenMP parallelizes the admission pipeline inside a generation (the spglib call per
 candidate is the hot spot at every N measured in T-B1), and checkpoint/restart turns the [A13]
-wall-time path into resumable long runs. The floor-relative reporting (E/E_floor) added in v1.1
+wall-time path into resumable long runs. The floor-relative reporting ($E/E_{\mathrm{floor}}$) added in v1.1
 gives those runs a scale-free convergence metric from the start.

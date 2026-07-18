@@ -8,9 +8,9 @@ as 1.7.0 with a 24-gate machine-checked verification matrix. Every claim below i
 from the repository with the commands in §5.
 
 The one-table summary of what the algorithm buys, produced by one `exsqs score` call on the
-reference system (bcc W₉₀Cr₃₈, 4×4×4, 128 sites, E_floor = 3.246078e-3):
+reference system (bcc $\mathrm{W_{90}Cr_{38}}$, 4×4×4, 128 sites, $E_{\mathrm{floor}} = 3.246078 \times 10^{-3}$):
 
-| structure | E_pure | E/E_floor | D | D(P1)/D | SG |
+| structure | $E_{\mathrm{pure}}$ | $E/E_{\mathrm{floor}}$ | D | $D(P1)/D$ | SG |
 |---|---|---|---|---|---|
 | random decoration | 5.105e-2 | 15.73× | 768 | 1.00 | P1 |
 | γ = 0 champion | 8.112e-3 | **2.50×** | 416 | 1.85 | Cm |
@@ -33,7 +33,7 @@ and OpenMP-parallel with **bitwise** thread-count invariance. **1.3.0** added th
 signature-guarded checkpoint/resume with raisable budgets, an MPI driver with rank-count
 invariance (T-MPI1: serial ≡ n1 ≡ n3, including logs and migration ledgers), SLURM templates
 and a chaining script on the exit-0/3 contract. **1.4.0** extended to K ≥ 3 (ternary
-W₆₄Mo₃₂Cr₃₂, `full_pairs` [A16]), ran the validation campaigns, and unified everything under
+$\mathrm{W_{64}Mo_{32}Cr_{32}}$, `full_pairs` [A16]), ran the validation campaigns, and unified everything under
 `tools/run_all_tests.sh`. **1.5.0** delivered interoperability: `exsqs score` for external
 structures (T-X1 bit-exact against engine records) and the [A11] geometric β schedule.
 **1.6.0** mechanized project coherence (T-CO1, 17 spec↔code↔tests↔docs cross-checks as the
@@ -53,7 +53,7 @@ inescapable conclusion is a hidden normalization in the plotted quantity (a per-
 ≈ E/14, would land exactly in its range), which is why this project treats absolute error
 scales as non-comparable across codes and compares **raw structures only** (`exsqs score`,
 T-V1/T-X1/T-X2); the discrepancy is flagged for an erratum note in any revision of the paper.
-The e_tol defaults are therefore floor-relative (auto = 3×E_floor), which also handles the
+The e_tol defaults are therefore floor-relative (auto $= 3 \times E_{\mathrm{floor}}$), which also handles the
 K = 3 discovery that commensurate (dyadic) compositions make the floor **exactly zero**, where
 only numeric tolerances are meaningful.
 
@@ -107,7 +107,7 @@ For each external structure: convert if needed, align, score —
     python3 tools/py/align_to_config.py geom.vasp their.vasp aligned.vasp
     ./build/exsqs score configs/w70cr30_4x4x4.yaml aligned.vasp --json theirs.json
 
-then compare E_pure/E_floor, D, and SG directly against the engine's `summary.json` — same
+then compare $E_{\mathrm{pure}}$/$E_{\mathrm{floor}}$, D, and SG directly against the engine's `summary.json` — same
 geometry, same zones, same objective, no scale ambiguity.
 
 ## 7. What requires cluster hardware (the remaining work)
