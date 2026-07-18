@@ -83,6 +83,7 @@ run_tags "S6  non-diagonal supercell matrix"          "[supercell]"
 
 # ---- Step 9: multiplet sectors (v1.9, SPEC 4.2) ----
 run_tags "S9  multiplet sectors (T-M1..T-M4)"         "[multiplets]"
+run_tags "S10 E[random] normalization (T-N1..T-N3)"   "[normalize]"
 
 # ---- Step 8: release pipeline (v1.7) ----
 t0=$(date +%s)
