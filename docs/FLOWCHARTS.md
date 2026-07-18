@@ -101,7 +101,7 @@ Where in the code
 ## 2. CLI dispatch and run lifecycle
 
 What happens between `exsqs …` on the command line and the exit code.
-Exit codes: **0** converged (min E_pure ≤ e_tol), **3** budget exhausted
+Exit codes: **0** converged ($\min E_{\mathrm{pure}} \le$ `e_tol`), **3** budget exhausted
 (resumable, normal), **1** error.
 
 ```mermaid
@@ -117,7 +117,7 @@ flowchart TD
     RESQ -- no --> LOAD
     RESFIX --> LOAD["load_config(path, overrides)<br/>(flowchart 3)"]
     LOAD --> RFC["run_from_config(cfg, resume_dir + '/state.ckpt')<br/>banner → RunContext::build → run_evolution<br/>→ write_outputs → summary print"]
-    RFC --> OK{"min E_pure ≤ e_tol<br/>on any island?"}
+    RFC --> OK{"$\min E_{\mathrm{pure}} \le$ `e_tol`<br/>on any island?"}
     OK -- yes --> EXITOK(["exit 0 (SUCCESS)"])
     OK -- no --> EXIT3(["exit 3 (budget exhausted,<br/>resumable)"])
     RFC -. "std::exception" .-> EXIT1(["exit 1 (error)"])
@@ -243,7 +243,7 @@ repopulation `[A12]` with a three-stage fallback ladder, stagnation stop `[A13]`
 
 ```mermaid
 flowchart TD
-    A["advance() — no-op if done"] --> T1{"min E_pure ≤ e_tol?"}
+    A["advance() — no-op if done"] --> T1{"$\min E_{\mathrm{pure}} \le$ `e_tol`?"}
     T1 -- yes --> S1(["stop 'e_tol'<br/>success = true"])
     T1 -- no --> T2{"gen ≥ max_generations?"}
     T2 -- yes --> S2(["stop 'max_generations'"])
@@ -333,14 +333,14 @@ Where in the code
 | `displacement_count` | `src/displacements.cpp:89/:93` (`least_displacements` `:72/:76`; internals `disp_one` `:17`, `disp_two` `:34`, `minus_needed` `:53`) |
 | `count_pairs` | `src/correlation.cpp:36` (`CorrData` `correlation.hpp:17`) |
 | `e_pure_diagonal` / `e_pure_full` | `src/correlation.cpp:53` / `:66` |
-| `Individual` (σ, canonical, sg, stab_ops, D, E_pure, E_obj) | `include/exsqs/evolution.hpp:18` |
+| `Individual` ($\sigma$, canonical, sg, stab\_ops, $D$, $E_{\mathrm{pure}}$, $E_{\mathrm{obj}}$) | `include/exsqs/evolution.hpp:18` |
 
 ---
 
 ## 7. MPI driver: rank-distributed islands
 
 `exsqs_mpi` lifts the same lockstep schedule across processes. Islands are
-owned round-robin (`island i → rank i mod R`); migration and checkpointing go
+owned round-robin ($island i \to rank i mod R$); migration and checkpointing go
 through collective byte-blob exchanges. Results are **bit-identical** to the
 serial binary for any rank count (`[A14]`, gate T-MPI1).
 
@@ -376,7 +376,7 @@ Where in the code
 |---|---|
 | `main` | `src/mpi_main.cpp:101-302` |
 | flag parsing | `src/mpi_main.cpp:109-134` |
-| setup + logging silencing | `src/mpi_main.cpp:136-141` (`cfg.log_info = false` for rank ≠ 0 at `:139`) |
+| setup + logging silencing | `src/mpi_main.cpp:136-141` ($cfg.log_info = false$ for rank ≠ 0 at `:139`) |
 | ownership round-robin | `src/mpi_main.cpp:143-149` |
 | thread budget | `src/mpi_main.cpp:151-157` (`local_threads` `:41`) |
 | resume (all ranks read shared file) | `src/mpi_main.cpp:167-170` → `load_run_state` (`evolution.cpp:883`) |
@@ -434,7 +434,7 @@ Where in the code
 ## 9. `score` subcommand
 
 Scores externally produced structures (POSCAR) on the config geometry with the
-exact evaluation stack of the search — E_pure, E/E_floor, D, SG, E_obj.
+exact evaluation stack of the search — $E_{\mathrm{pure}}$, $E/E_{\mathrm{floor}}$, D, SG, $E_{\mathrm{obj}}$.
 
 ```mermaid
 flowchart TD
