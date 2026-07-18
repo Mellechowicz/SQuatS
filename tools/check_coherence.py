@@ -157,7 +157,7 @@ report("sections 1..16 present", not missing_sec, ",".join(missing_sec))
 
 # ---- C9: README references resolve -----------------------------------------
 print("C9 README references")
-refs = set(re.findall(r"(?:tools|scripts|configs)/[\w./-]+", readme))
+refs = set(re.findall(r"(?:tools|_scripts|configs)/[\w./-]+", readme))
 dead = sorted(x for x in refs if not pathlib.Path(x.rstrip(".,)")).exists())
 report("referenced paths exist", not dead, ",".join(dead))
 bins = set(re.findall(r"\./build/(\w+)", readme))
