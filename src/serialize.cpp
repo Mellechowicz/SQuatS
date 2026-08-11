@@ -200,6 +200,9 @@ std::string trajectory_signature(const RunConfig& c) {
     w.i32(c.mshell3);
     w.i32(c.mshell4);
   }
+  if (c.normalize_epure) {
+    w.raw("NRM1", 4);
+  }
   return w.data();
 }
 

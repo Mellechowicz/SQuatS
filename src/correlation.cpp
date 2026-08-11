@@ -107,4 +107,34 @@ double e_floor_full(const ZoneTable& zt, const std::vector<int>& counts,
   return f;
 }
 
+double analytic_e_random_diagonal(const ZoneTable& zt, const std::vector<int>& counts,
+                                  const std::vector<double>& x, const std::vector<double>& w) {
+  double f = 0.0;
+  for (int n = 0; n < zt.n_shells; ++n)
+    for (size_t t = 0; t < counts.size(); ++t) {
+      if (counts[t] <= 0) continue;
+      const double P = static_cast<double>(counts[t]) * zt.coord_num[static_cast<size_t>(n)];
+      if (P > 0) {
+        f += w[static_cast<size_t>(n)] * std::sqrt(2.0 * x[t] * (1.0 - x[t]) / (3.14159265358979323846 * P));
+      }
+    }
+  return f;
+}
+
+double analytic_e_random_full(const ZoneTable& zt, const std::vector<int>& counts,
+                              const std::vector<double>& x, const std::vector<double>& w) {
+  double f = 0.0;
+  for (int n = 0; n < zt.n_shells; ++n)
+    for (size_t t = 0; t < counts.size(); ++t) {
+      if (counts[t] <= 0) continue;
+      const double P = static_cast<double>(counts[t]) * zt.coord_num[static_cast<size_t>(n)];
+      if (P > 0) {
+        for (size_t u = 0; u < counts.size(); ++u) {
+          f += w[static_cast<size_t>(n)] * std::sqrt(2.0 * x[u] * (1.0 - x[u]) / (3.14159265358979323846 * P));
+        }
+      }
+    }
+  return f;
+}
+
 }  // namespace exsqs

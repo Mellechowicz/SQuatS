@@ -207,13 +207,20 @@ RunContext RunContext::build(const RunConfig& cfg) {
   ctx.e_floor_pair = cfg.full_pairs
                          ? e_floor_full(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights)
                          : e_floor_diagonal(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights);
+  ctx.e_random = cfg.full_pairs
+                     ? analytic_e_random_full(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights)
+                     : analytic_e_random_diagonal(ctx.zones, cfg.counts, cfg.x_achieved, ctx.weights);
+  // PAIR-ONLY normalization (SPEC 4.3): the pair sector is divided by its
+  // analytic random expectation; the multiplet sectors stay raw, so the
+  // composed floor mirrors the composed objective exactly.
   ctx.e_floor = ctx.e_floor_pair;
+  if (cfg.normalize_epure && ctx.e_random > 0.0) ctx.e_floor /= ctx.e_random;
   ctx.multiplets = cfg.lambda3 > 0.0 || cfg.lambda4 > 0.0;
   if (ctx.multiplets) {
     ctx.clusters = build_clusters(ctx.geom, ctx.zones, cfg.x_achieved, cfg.mshell3, cfg.mshell4,
                                   cfg.lambda4 > 0.0);
-    // total bound: exact pair floor + per-sector bounds (bounds only -- the
-    // sectors couple through the one decoration, SPEC 4.2)
+    // total bound: (normalized) pair floor + per-sector bounds (bounds only
+    // -- the sectors couple through the one decoration, SPEC 4.2)
     ctx.e_floor += cfg.lambda3 * ctx.clusters.floor3 + cfg.lambda4 * ctx.clusters.floor4;
   }
   ctx.perms = site_permutations(ctx.geom, cfg.symprec);
@@ -745,6 +752,8 @@ class IslandEngine {
     const CorrData cd = count_pairs(s, ctx_.zones);
     out.e_pure = cfg_.full_pairs ? e_pure_full(cd, cfg_.x_achieved, ctx_.weights)
                                  : e_pure_diagonal(cd, cfg_.x_achieved, ctx_.weights);
+    if (cfg_.normalize_epure && ctx_.e_random > 0.0)
+      out.e_pure /= ctx_.e_random;  // pair sector only (SPEC 4.3)
     if (ctx_.multiplets) {  // v1.9 (SPEC 4.2): E = E_2 + l3*E_3 + l4*E_4
       double e3 = 0.0, e4 = 0.0;
       e_multiplets(out.sigma, ctx_.clusters, e3, e4);
@@ -1132,6 +1141,8 @@ void write_outputs(const RunConfig& cfg, const RunContext& ctx, const RunOutput&
   j << "  \"e_tol\": " << num(cfg.e_tol) << ",\n";
   j << "  \"e_tol_effective\": " << num(effective_e_tol(cfg, ctx)) << ",\n";
   j << "  \"e_floor\": " << num(ctx.e_floor) << ",\n";
+  if (cfg.normalize_epure)  // SPEC 4.3 provenance
+    j << "  \"e_random\": " << num(ctx.e_random) << ",\n";
   if (ctx.multiplets) {  // v1.9 (SPEC 4.2) provenance of the sector objective
     j << "  \"e_floor_pair\": " << num(ctx.e_floor_pair) << ",\n";
     j << "  \"multiplets\": {\"lambda3\": " << num(cfg.lambda3)
@@ -1203,6 +1214,10 @@ int run_from_config(const RunConfig& cfg, const std::string& resume_from) {
                   ctx.clusters.c4.size(), ctx.clusters.inst4);
     std::printf(" | sector bounds E3>=%.6e E4>=%.6e\n", ctx.clusters.floor3, ctx.clusters.floor4);
   }
+  if (cfg.normalize_epure)  // SPEC 4.3: E in units of the random expectation
+    std::printf("normalize: analytic E[random] = %.6e -- the pair sector is\n"
+                "           reported in units of it (E = 1 ~ the random alloy)\n",
+                ctx.e_random);
   std::printf("E_floor = %.6e (%s, SPEC 4.%d)%s\n", ctx.e_floor,
               ctx.multiplets ? "pair floor + lambda-weighted sector bounds"
                              : "L1 quantization bound",

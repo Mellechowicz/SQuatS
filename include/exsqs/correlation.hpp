@@ -34,6 +34,11 @@ double e_pure_diagonal(const CorrData& cd, const std::vector<double>& x,
                        const std::vector<double>& w);
 double e_pure_full(const CorrData& cd, const std::vector<double>& x, const std::vector<double>& w);
 
+double analytic_e_random_diagonal(const ZoneTable& zt, const std::vector<int>& counts,
+                                  const std::vector<double>& x, const std::vector<double>& w);
+double analytic_e_random_full(const ZoneTable& zt, const std::vector<int>& counts,
+                              const std::vector<double>& x, const std::vector<double>& w);
+
 
 // v1.1 (SPEC 4.1): exact L1 lower bound from count quantization. C counters are
 // integers while P_t(n) = N_t*Z_n is fixed, so each term obeys
