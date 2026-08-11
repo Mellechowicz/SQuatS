@@ -64,7 +64,7 @@ T-P0 evaluates 48 random decorations through the full pipeline (spglib dataset, 
 count, correlations) serially and under a 4-thread `parallel for`, requiring identical space
 groups, operation counts, equivalent-atom vectors, D values, and errors — spglib 2.7.0 and the
 core wrappers hold up. Measured on the dev workstation (`./build/exsqs_bench_scaling`, fixed
-workload W₉₀Cr₃₈ bcc 4×4×4, pop 48, 6 generations):
+workload $\mathrm{W_{90}Cr_{38}}$ bcc 4×4×4, pop 48, 6 generations):
 
 | islands | omp_threads | wall_s | best_e_pure |
 |---|---|---|---|
@@ -87,12 +87,12 @@ will reuse the migration protocol at rank boundaries.
 
 ## 4. Migration demonstrated on the reference system
 
-W₉₀Cr₃₈, γ = 0, four islands at moderate pressure (metropolis β = 800), `migration_every: 8`,
+$\mathrm{W_{90}Cr_{38}}$, γ = 0, four islands at moderate pressure (metropolis β = 800), `migration_every: 8`,
 `migrants: 2`, ≤ 40 generations, `e_tol: auto`: the run terminates **rc = 0 SUCCESS at
-2.50× E_floor** (8.112e-3, Cm) after 10,726 evaluations. Three islands cross the gate
+$2.50 \times E_{\mathrm{floor}}$** (8.112e-3, Cm) after 10,726 evaluations. Three islands cross the gate
 independently (stops `[e_tol, e_tol, stagnation, e_tol]` at generations `[4, 10, 21, 11]`), and
-the dedup-aware ledger is visible in `summary.json` — `island_migrants_in = [0, 2, 2, 2]`
-against `island_migrants_out = [0, 2, 2, 2]` (island 0 crossed before the first sync round;
+the dedup-aware ledger is visible in `summary.json` — $island_migrants_in = [0, 2, 2, 2]$
+against $island_migrants_out = [0, 2, 2, 2]$ (island 0 crossed before the first sync round;
 receivers skip canonicals they have already explored, so in ≤ out always). The one island that
 did not converge is the one the [A13] stagnation stop retired — at β = 800 the exploiter
 exhausts its ⟨g⟩ neighborhood exactly as the Step-2 arithmetic predicts. The run validates
@@ -111,6 +111,6 @@ Deferred to Step 4 (HPC): checkpoint *restart* — `IslandEngine` is already res
 what remains is serializing (population σ's, generation, archive, pool) and a `--resume` path;
 MPI island ranks across nodes reusing the §8.1 migration protocol; SLURM workflow templates; and
 long-budget validation runs against the paper's raw structures via `validate.py`, using the
-floor-relative metric (E/E_floor) as the scale-free convergence measure. On a 16–64-core node
+floor-relative metric ($E/E_{\mathrm{floor}}$) as the scale-free convergence measure. On a 16–64-core node
 the v1.2 layer already sustains the budgets that the Step-2 dynamics study identified as the
 remaining gap.

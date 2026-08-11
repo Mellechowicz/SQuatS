@@ -5,13 +5,13 @@ special quasirandom structures that keep a deliberate residue of crystal
 symmetry: instead of scrambling the cell into P1, the generator trades
 correlation error `E_pure` against the number `D` of symmetry-inequivalent
 displacements a downstream phonon/DFT workflow must compute, minimizing
-`E_obj = E_pure * D^gamma`. Classical SQS is the `gamma = 0` member of the
+$E_{\mathrm{obj}} = E_{\mathrm{pure}} \cdot D^{\gamma}$. Classical SQS is the $\gamma = 0$ member of the
 family.
 
 This repository is the SQuatS project. Its engine, **EXSQS**, is a C++17
 implementation of the extinction evolutionary algorithm from *"On generating
 Special Quasirandom Structures: Optimization for the DFT computational
-efficiency"* (arXiv:2602.10872) — at `gamma = 1` on the reference system it
+efficiency"* (arXiv:2602.10872) — at $\gamma = 1$ on the reference system it
 finds cells needing **six-fold fewer displacements** than a random (P1)
 decoration at controlled correlation cost.
 
@@ -55,7 +55,7 @@ Reference configs: `configs/w70cr30_4x4x4.yaml` (binary bcc, 128 sites),
 
 Multiplet sectors (v1.9, SPEC 4.2): `error.multiplets: {lambda3: 1.0}`
 adds cancellation-free triplet (and with `lambda4` quadruplet) L1 sectors
-over symmetry-invariant cluster classes, `E = E_2 + l3*E_3 + l4*E_4`;
+over symmetry-invariant cluster classes, $E = E_2 + \lambda_3 E_3 + \lambda_4 E_4$;
 `configs/mul_smoke_sc27.yaml` is the smoke,
 `configs/hea5_bcc_5x5x5_mul.yaml` the production example. Defaults (both
 lambdas 0) keep the pair-only engine bit-identical.

@@ -13,7 +13,7 @@ re-derives the reported errors independently (spot checks below at |diff| = 0).
 
 ## The ladder at γ = 0 (pure SQS)
 
-| cell | N | \|PG\| | \|Π\| | 25\|N | E_floor | best E_pure | E/floor | g95/gmax | evals | seed waste | stop |
+| cell | N | $\lvert\mathrm{PG}\rvert$ | $\lvert\Pi\rvert$ | $25 \mid N$ | $E_{\mathrm{floor}}$ | best $E_{\mathrm{pure}}$ | E/floor | g95/gmax | evals | seed waste | stop |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 2×2×2 | 16 | 48 | 768 | no | 7.287e-1 | 3.3060 | 4.54× | 0/60 | 4,489 | 69% | cap |
 | 2×2×3 | 24 | 16 | 384 | no | 3.736e-1 | 1.9811 | 5.30× | 16/60 | 7,844 | 69% | cap |
@@ -35,7 +35,7 @@ re-derives the reported errors independently (spot checks below at |diff| = 0).
 g95 = first generation whose pooled best is within 5% of the run's final best; "seed waste" =
 P1-rejected fraction of generation-0 evaluations; every stop is the 60-generation cap.
 
-**The floor law holds on all sixteen cells: E_floor = 0 ⟺ 25 | N.** Only 200, 250 and 300
+**The floor law holds on all sixteen cells: $E_{\mathrm{floor}} = 0 \iff 25 \mid N$.** Only 200, 250 and 300
 sites divide the 25 sites-per-composition-period of the equiatomic quinary; perfect
 stoichiometry at any other size leaves a positive, computable floor that decays roughly as 1/N
 (0.729 at 16 sites → 0.0122 at 686). Below 54 sites the composition itself is not
@@ -46,7 +46,7 @@ effectively does not exist at 2×2×2.
 brings 16–128 sites to their plateau (g95 well inside the cap, best-of-run reached by
 generation ≈ 33–47) is nowhere near sufficient from 300 sites up: g95 ≈ gmax and the pooled
 best is still descending when the cap fires, with the floor-relative error rising monotonically
-to 82× at 686 sites. In absolute terms the picture inverts — best E_pure *falls* from 3.31 to
+to 82× at 686 sites. In absolute terms the picture inverts — best $E_{\mathrm{pure}}$ *falls* from 3.31 to
 ≈ 0.55–1.0 across the ladder — so budget comparisons must be floor-relative (or
 random-normalized, see below), never absolute. At the small end the opposite regime appears:
 2×2×2 finds its final best already in generation 0 and spends 60 generations re-discovering
@@ -58,15 +58,15 @@ at 66–78% on the cubic cells (|PG| = 48) — the constructive slots carry the 
 everywhere, and the rejection halves are pure waste from 96 sites up.
 
 **Cost.** Aggregate throughput across the 4-island runs spans 6,800 → 125 evaluations/s as
-|Π|·N grows by 1,800× — damped relative to the strict 1/(|Π|·N) law because duplicate
+$\lvert\Pi\rvert \cdot N$ grows by 1,800× — damped relative to the strict $1/(\lvert\Pi\rvert \cdot N)$ law because duplicate
 rejections (which dominate small cells) skip the spglib call. The clean per-evaluation law
-lives in the recorded T-B1 bench: evals/s × |Π| × N is constant within ×1.5 from 128 to 1,024
+lives in the recorded T-B1 bench: evals/s $\times \lvert\Pi\rvert \times N$ is constant within $\times 1.5$ from 128 to 1,024
 sites on one worker. 7×7×7 remains entirely practical: a full 60-generation, 4-island run is
 under a minute of wall on a 32-core node.
 
 ## The ladder at γ = 1 (displacement-penalized)
 
-| cell | D(P1)=6N | best D | D-reduction | E_pure(γ1) | SG | E(γ1)/E(γ0) |
+| cell | $D(P1){=}6N$ | best $D$ | $D$-reduction | $E_{\mathrm{pure}}(\gamma{=}1)$ | SG | $E(\gamma{=}1)/E(\gamma{=}0)$ |
 |---|---|---|---|---|---|---|
 | 2×2×2 | 96 | 30 | 3.2× | 4.587 | Cmm2 | 1.39 |
 | 2×2×3 | 144 | 44 | 3.3× | 3.616 | Pmm2 | 1.83 |
@@ -87,7 +87,7 @@ under a minute of wall on a 32-core node.
 
 **The ordered-compound collapse reproduces exactly where the seven-cell study found it — and
 nowhere else.** The two cells with a 5,5-axis pair (4×5×5 and 5×5×6) both fall onto the *same*
-Cmcm-layered compound at D = 10 and E_pure = 7.938889 — the identical value at 200 and 300
+Cmcm-layered compound at D = 10 and $E_{\mathrm{pure}}$ = 7.938889 — the identical value at 200 and 300
 sites, an order of magnitude above their γ = 0 bests (14.8×/11.7×). This is an anti-SQS: a
 crystalline decoration winning an SQS objective purely through its D collapse, the clearest
 argument for normalizing the objective (§Vulnerabilities, item 3). The other equal-axis cells
@@ -149,13 +149,13 @@ foot-gun below was found, reproduced and regression-tested in a day).
 2. **`e_tol: auto` degenerates on both ends.** On zero-floor cells (25 | N) auto = 0 is
    unreachable; on small cells the floor is so large (0.73 at N = 16) that auto = 3×floor is
    meaningless. *Proposal:* normalize the target by the analytic random-alloy expectation
-   E[random] (hypergeometric, SPEC §4 note) — a scale-free `e_tol: fraction_of_random` that is
+   $E[\mathrm{random}]$ (hypergeometric, SPEC §4 note) — a scale-free `e_tol: fraction_of_random` that is
    well-defined on every cell, zero-floor or not.
 3. **γ = 1 rewards anti-SQS collapse.** On cells with a compatible axis pair the run walks into
    an *ordered* low-D compound whose correlation error is an order of magnitude above the
    random baseline — the objective E·D^γ is unnormalized, so a D collapse pays for any E.
-   *Proposal (top-ranked):* divide E_pure by the analytic E[random] in the objective, or keep a
-   Pareto archive of (E_pure, D) and select post hoc; either prevents the degenerate corner
+   *Proposal (top-ranked):* divide $E_{\mathrm{pure}}$ by the analytic $E[\mathrm{random}]$ in the objective, or keep a
+   Pareto archive of ($E_{\mathrm{pure}}$, D) and select post hoc; either prevents the degenerate corner
    from dominating.
 4. **Fixed generation budgets do not scale with N.** Ratio survival never stagnated here (all
    stops are `max_generations`), and on the large cells the best error is still descending at

@@ -27,8 +27,8 @@ spec versions are noted in parentheses.
   extractor (fixed with brace counting).
 
 ## 1.5.0 (2026-06-12) — interoperability + spec completion (SPEC v1.5)
-- `exsqs score`: evaluate any POSCAR on a config's geometry (E_pure, E/E_floor,
-  D, D(P1)/D, SG, E_obj), site-order-free, loud mismatch errors; T-X1 pins
+- `exsqs score`: evaluate any POSCAR on a config's geometry ($E_{\mathrm{pure}}$, $E/E_{\mathrm{floor}}$,
+  D, $D(P1)/D$, SG, $E_{\mathrm{obj}}$), site-order-free, loud mismatch errors; T-X1 pins
   bit-exact agreement with engine records.
 - [A11] geometric beta schedule (`schedule: geometric`, `beta_growth`); the two
   fields have been in the trajectory signature since 1.3.0, so enabling the
@@ -52,7 +52,7 @@ spec versions are noted in parentheses.
 ## 1.1.0 (2026-03-12) — engine completion (SPEC v1.1)
 - Constructive space-group seeding [D4] behind the P1 rejection filter [A7][A8],
   symmetry-preserving [D6] mutation with Poisson swap counts [A12], stagnation
-  stop [A13]; floor-relative acceptance (`e_tol: auto` = 3.0 x E_floor,
+  stop [A13]; floor-relative acceptance (`e_tol: auto` = $3.0 \times E_{\mathrm{floor}}$,
   SPEC 4.1) promoted to the acceptance criterion.
 
 ## 1.0.0 (2026-02-13) — the minimal release

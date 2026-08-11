@@ -5,7 +5,7 @@ Moved here verbatim at the 1.7.0 release. The authoritative history is
 
 ## v1.1 notes (Step 2)
 
-`e_tol: auto` (default) resolves to 3.0 x E_floor, the provable L1 quantization lower bound
+`e_tol: auto` (default) resolves to $3.0 \times E_{\mathrm{floor}}$, the provable L1 quantization lower bound
 (SPEC 4.1) that the engine logs at startup; the paper's absolute error scale lies below this
 bound for its own reference system, so compare on raw structures (tools/py/validate.py), never
 on reported scalars. Serial exploitation recipe (seed-reproducible):
@@ -32,7 +32,7 @@ serial and MPI segments are interchangeable. Wire/state format assumes little-en
 ## v1.4 notes (Step 5) and testing
 
 K >= 3 is validated end-to-end (`configs/w50mo25cr25_4x4x4.yaml`; `error.mode: auto` resolves to
-full_pairs [A16]); note that commensurate compositions can have E_floor = 0 exactly -- use a
+full_pairs [A16]); note that commensurate compositions can have $E_{\mathrm{floor}} = 0$ exactly -- use a
 numeric `e_tol` there. Run the complete verification matrix with:
 
     bash tools/run_all_tests.sh          # everything
