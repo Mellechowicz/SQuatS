@@ -52,11 +52,11 @@ pymatgen / time. Exit codes everywhere: 0 = converged, 3 = budget exhausted
   (recorded T-B1 law), so large cells need proportionally larger
   `evolution.max_generations` or wall budgets.
 - Resume chains change only budget caps between segments:
-  `scripts/chain_resume.sh` loops run -> exit 3 -> `--resume` until exit 0.
+  `__scripts/chain_resume.sh` loops run -> exit 3 -> `--resume` until exit 0.
 
 ## HPC sites
 
-Ready-made scripts live under `scripts/hpc/<site>/`; each site has an
+Ready-made scripts live under `__scripts/hpc/<site>/`; each site has an
 environment file, a compile driver and three run flows. All of them are
 submitted **from the repository root**, and all honour the exit-0/3 contract:
 
@@ -71,7 +71,7 @@ submitted **from the repository root**, and all honour the exit-0/3 contract:
 Common knobs (via `--export=ALL,...`): `CFG`, `RUNDIR` (same value resumes),
 `MAX_SEGMENTS`, `SEGMENT_WALL_S`, `CONFIG_GLOB`/`RUNDIR_BASE` (array flow).
 
-### LUMI-C (`scripts/hpc/lumi/`, account `project_465002828`)
+### LUMI-C (`__scripts/hpc/lumi/`, account `project_465002828`)
 
 - HPE Cray EX, 2x AMD EPYC 7763 = 128 cores/node, 256 GiB (standard nodes).
 - Modules: `LUMI/24.03 partition/C` + `cpeGNU/24.03` (GNU compilers,
@@ -83,7 +83,7 @@ Common knobs (via `--export=ALL,...`): `CFG`, `RUNDIR` (same value resumes),
   8 ranks x 16 threads per node, max 2 days).
 - MPI launches with `srun` (no mpirun on LUMI).
 
-### Helios, Cyfronet (`scripts/hpc/helios/`, account `plgtopologyybbi2-cpu`)
+### Helios, Cyfronet (`__scripts/hpc/helios/`, account `plgtopologyybbi2-cpu`)
 
 - HPE Cray EX, 2x AMD EPYC 9654 = 192 cores/node, 384 GiB (`plgrid`
   partition); PLGrid accounts need the `-cpu` suffix — the bare grant name

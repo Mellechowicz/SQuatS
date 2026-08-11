@@ -1,14 +1,26 @@
 cff-version: 1.2.0
 message: >-
   If you use this software, please cite both the software and the paper whose
-  algorithm it implements.
+  algorithm it implements (BibTeX entries: CITATION.bib).
 title: "SQuatS: Symmetric QUasirandom ATomic Structures (EXSQS engine)"
-version: 1.7.0
-date-released: 2026-07-03
+version: 1.8.0
+date-released: 2026-07-15
 license: MIT
+repository-code: "https://github.com/Mellechowicz/SQuatS"
 authors:
   - family-names: "Kądzielawa"
     given-names: "Andrzej P."
+preferred-citation:
+  type: article
+  title: "On generating special quasirandom structures: optimization for the DFT computational efficiency"
+  authors:
+    - family-names: "Kądzielawa"
+      given-names: "Andrzej P."
+  journal: "Acta Physica Polonica B"
+  volume: 57
+  year: 2026
+  pages: "5-A15"
+  doi: "10.5506/APhysPolB.57.5-A15"
 references:
   - type: article
     title: "On generating Special Quasirandom Structures: Optimization for the DFT computational efficiency"

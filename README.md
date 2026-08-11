@@ -82,11 +82,11 @@ MPI driver (islands sharded over ranks, rank-count invariant):
 
     mpirun -n 8 ./build/exsqs_mpi configs/w70cr30_4x4x4.yaml --out runs/mpi
 
-SLURM templates in `scripts/slurm/` (`exsqs_omp.sbatch`, `exsqs_mpi.sbatch`);
-`scripts/chain_resume.sh` chains jobs on the exit-0/3 contract until
+SLURM templates in `__scripts/slurm/` (`exsqs_omp.sbatch`, `exsqs_mpi.sbatch`);
+`__scripts/chain_resume.sh` chains jobs on the exit-0/3 contract until
 convergence. Site-ready script sets for LUMI-C and Cyfronet's Helios —
-compile driver plus three run flows each — live in `scripts/hpc/lumi/` and
-`scripts/hpc/helios/` (see `docs/INSTALL.md`).
+compile driver plus three run flows each — live in `__scripts/hpc/lumi/` and
+`__scripts/hpc/helios/` (see `docs/INSTALL.md`).
 
 ## Testing
 
@@ -106,16 +106,20 @@ spec samples, and README references.
 `src/`, `include/exsqs/` — engine; `tests/` — Catch2 suites; `tools/` —
 runner, coherence audit, benchmarks, MPI/alignment gates; `tools/py/` —
 validation and interop scripts; `configs/` — reference configs (including the
-16-cell K=5 supercell ladder); `scripts/` — SLURM + chaining; `docs/` — SPEC.md,
+16-cell K=5 supercell ladder); `_scripts/` — SLURM + chaining; `docs/` — SPEC.md,
 TEST_MATRIX.txt, per-step reports, DEV_NOTES.md, SUPERCELL_STUDY.md.
 
 ## Citing
 
-See `CITATION.cff` (cite the arXiv paper and this software).
+Please cite the Acta Physica Polonica B paper (DOI
+[10.5506/APhysPolB.57.5-A15](https://doi.org/10.5506/APhysPolB.57.5-A15))
+and this software (github.com/Mellechowicz/SQuatS). Ready-made BibTeX
+entries live in `CITATION.bib`; citation metadata in `CITATION.cff`
+(GitHub's "Cite this repository" button uses it).
 
 ## License
 
 MIT — see `LICENSE`.
 
 ## Disclaimer
-For the coding and version control, we used assisst by [Claude Code](https://claude.com/claude-code).
+For the coding and version control, we used assist by [Claude Code](https://claude.com/claude-code).
