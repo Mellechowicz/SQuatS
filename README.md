@@ -131,7 +131,7 @@ parser does not know (typos included) are ignored without a message.
 | `rng.seed` | `20260712` | `42` | one seed + config = one trajectory |
 | `output.dir` | `./runs/demo` | `./run1` | `--out DIR` is shorthand for this |
 | `output.formats` | `[poscar]` | `[poscar]` | other formats warn and are skipped |
-| `output.checkpoint_every` | `20` | `100` | rounds between `state.ckpt` writes |
+| `output.checkpoint_every` | `20` | `100` | rounds between `state.ckpt` and mid-run `checkpoint.json` writes |
 | `output.log_level` | `info` | `info` | `info`/`debug` print per-generation rows; anything else is quiet |
 
 ### Conflicts and precedence
@@ -154,8 +154,9 @@ parser does not know (typos included) are ignored without a message.
 | `e_tol: auto` on a commensurate composition (`E_floor = 0`) | target degenerates to 0 and is unreachable — set a numeric `e_tol` |
 | numeric `e_tol` below `E_floor` | warning; the run can only end on caps |
 | `islands: 1`, or `migrants: 0`, or `migration_every: 0` | migration inactive (ledger stays zero) |
-| `mutation.swaps: poisson` + `swaps` integer | mutually exclusive spellings of one key; `poisson` activates `lambda` |
+| `mutation.lambda` without `swaps: poisson` | ignored silently (`lambda` is read only in the poisson branch) |
 | `lattice.c` on non-`hcp` types | ignored |
+| `zones.n_shells` reaching past the cell on small supercells | error: `build_zones: sites do not form a single orbit`; lower `n_shells` (8-site cells take 3) |
 
 ### Changing tags on `--resume`
 
@@ -163,7 +164,9 @@ Only `evolution.max_generations`, `evolution.max_wall_s`, `parallel.omp_threads`
 and the `output.*` keys may differ from the checkpointed run. Every other tag
 enters the trajectory signature — including `parallel.islands`, `rng.seed`,
 `error.*` and the whole system block — and a change is refused with
-`state: trajectory signature mismatch`.
+`state: trajectory signature mismatch`. The `multiplets.shell3`/`shell4` keys
+are signed only while a lambda is non-zero, so they are free to change on a
+pair-only run (where they have no effect anyway).
 
 ## Scoring external structures
 
