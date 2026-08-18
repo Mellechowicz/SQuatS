@@ -1,12 +1,18 @@
-# EXSQS — extinction-based evolutionary SQS generator
+# SQuatS — Symmetric QUasirandom ATomic Structures
 
-C++17 implementation of the extinction evolutionary algorithm for Special
-Quasirandom Structures from *"On generating Special Quasirandom Structures:
-Optimization for the DFT computational efficiency"* (arXiv:2602.10872). The
-engine minimizes `E_obj = E_pure * D^gamma`, trading correlation error
-`E_pure` against the number of symmetry-inequivalent displacements `D` that a
-downstream phonon/DFT workflow must compute — at `gamma = 1` on the reference
-system it finds cells needing **six-fold fewer displacements** than a random (P1)
+**SQuatS** (**S**ymmetric **QU**asirandom **AT**omic **S**tructures) are
+special quasirandom structures that keep a deliberate residue of crystal
+symmetry: instead of scrambling the cell into P1, the generator trades
+correlation error `E_pure` against the number `D` of symmetry-inequivalent
+displacements a downstream phonon/DFT workflow must compute, minimizing
+`E_obj = E_pure * D^gamma`. Classical SQS is the `gamma = 0` member of the
+family.
+
+This repository is the SQuatS project. Its engine, **EXSQS**, is a C++17
+implementation of the extinction evolutionary algorithm from *"On generating
+Special Quasirandom Structures: Optimization for the DFT computational
+efficiency"* (arXiv:2602.10872) — at `gamma = 1` on the reference system it
+finds cells needing **six-fold fewer displacements** than a random (P1)
 decoration at controlled correlation cost.
 
 Design guarantees, all machine-verified (see Testing): one deterministic
@@ -24,10 +30,11 @@ Version 1.7.0. `docs/SPEC.md` (v1.7) is the normative specification;
     cmake -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build -j
 
-Requires CMake >= 3.20, a C++17 compiler, OpenMP. Bundled/fetched: yaml-cpp,
-spglib, Catch2. The MPI driver builds automatically when FindMPI succeeds
-(if several MPI stacks are installed, point CMake at one, e.g.
-`-DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi`).
+Requires CMake >= 3.20 (< 4.0), a C++17 compiler, OpenMP. Bundled/fetched:
+yaml-cpp, spglib, Catch2. The MPI driver builds automatically when FindMPI
+succeeds (if several MPI stacks are installed, point CMake at one, e.g.
+`-DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi`). Full dependency list, tuning
+guidance and site instructions: `docs/INSTALL.md`.
 
 ## Quickstart
 
@@ -45,6 +52,13 @@ raising budgets:
 Reference configs: `configs/w70cr30_4x4x4.yaml` (binary bcc, 128 sites),
 `configs/w50mo25cr25_4x4x4.yaml` (ternary, exact-zero floor),
 `configs/smoke_sc27.yaml` (seconds-fast smoke).
+
+Multiplet sectors (v1.9, SPEC 4.2): `error.multiplets: {lambda3: 1.0}`
+adds cancellation-free triplet (and with `lambda4` quadruplet) L1 sectors
+over symmetry-invariant cluster classes, `E = E_2 + l3*E_3 + l4*E_4`;
+`configs/mul_smoke_sc27.yaml` is the smoke,
+`configs/hea5_bcc_5x5x5_mul.yaml` the production example. Defaults (both
+lambdas 0) keep the pair-only engine bit-identical.
 
 ## Scoring external structures
 
@@ -70,7 +84,9 @@ MPI driver (islands sharded over ranks, rank-count invariant):
 
 SLURM templates in `scripts/slurm/` (`exsqs_omp.sbatch`, `exsqs_mpi.sbatch`);
 `scripts/chain_resume.sh` chains jobs on the exit-0/3 contract until
-convergence.
+convergence. Site-ready script sets for LUMI-C and Cyfronet's Helios —
+compile driver plus three run flows each — live in `scripts/hpc/lumi/` and
+`scripts/hpc/helios/` (see `docs/INSTALL.md`).
 
 ## Testing
 
@@ -95,8 +111,15 @@ TEST_MATRIX.txt, per-step reports, DEV_NOTES.md, SUPERCELL_STUDY.md.
 
 ## Citing
 
-See `CITATION.cff` (cite the arXiv paper and this software).
+Please cite the Acta Physica Polonica B paper (DOI
+[10.5506/APhysPolB.57.5-A15](https://doi.org/10.5506/APhysPolB.57.5-A15))
+and this software (github.com/Mellechowicz/SQuatS). Ready-made BibTeX
+entries live in `CITATION.bib`; citation metadata in `CITATION.cff`
+(GitHub's "Cite this repository" button uses it).
 
 ## License
 
 MIT — see `LICENSE`.
+
+## Disclaimer
+For the coding and version control, we used assist by [Claude Code](https://claude.com/claude-code).
